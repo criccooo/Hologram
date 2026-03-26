@@ -13,21 +13,18 @@ const youtubeVideoId = "dQw4w9WgXcQ";
 
 let isPinching = false; 
 
-// Coordinate 3D virtuali dell'ologramma (iniziali)
+// Coordinate 3D virtuali
 let cubeCurrentX = 0;
 let cubeCurrentY = 1.5;
 let cubeCurrentZ = -3; 
 
-// Variabili per la SCALA (avanti/indietro)
 let videoScale = 1.0; 
 let startHandSize = 0;
 let startVideoScale = 1.0;
 
-// Dimensioni base del video in pixel
 const iframeBaseWidth = 320;
 const iframeBaseHeight = 180;
 
-// Elementi HTML
 const video = document.getElementById("webcam");
 const canvasElement = document.getElementById("output_canvas");
 const canvasCtx = canvasElement.getContext("2d");
@@ -37,7 +34,6 @@ const youtubeIframe = document.getElementById("youtubeIframe");
 const ologramEntity = document.querySelector('#hologram');
 const cameraEl = document.querySelector('a-camera');
 
-// 1. CARICAMENTO DEL MODELLO AI
 const createHandLandmarker = async () => {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
@@ -54,35 +50,25 @@ const createHandLandmarker = async () => {
 };
 createHandLandmarker();
 
-// 2. GESTIONE DELLA WEBCAM E DELLO SCHERMO INTERO
 if (!!navigator.mediaDevices?.getUserMedia) {
   enableWebcamButton.addEventListener("click", enableCam);
 }
 
 function enableCam(event) {
   if (!handLandmarker) return;
-  
   if (webcamRunning === true) {
     webcamRunning = false;
   } else {
     webcamRunning = true;
-    
-    // Fai sparire il bottone
     enableWebcamButton.style.display = "none";
     
-    // Richiedi Schermo Intero
+    // Schermo Intero
     const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-      elem.requestFullscreen().catch(err => console.log(err));
-    } else if (elem.webkitRequestFullscreen) { 
-      elem.webkitRequestFullscreen(); 
-    }
+    if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => console.log(err)); } 
+    else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
     
-    // Accendi Fotocamera Posteriore ("environment")
-    const constraints = { 
-      video: { facingMode: "environment" } 
-    };
-    
+    // Fotocamera posteriore
+    const constraints = { video: { facingMode: "environment" } };
     navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
       video.srcObject = stream;
       video.addEventListener("loadeddata", predictWebcam);
@@ -90,7 +76,6 @@ function enableCam(event) {
   }
 }
 
-// MAGIA MATEMATICA: Calcola dove il 3D finisce sul 2D (Schermo)
 function getScreenCoords(entity, camera) {
     const object3D = entity.object3D;
     const vector = new THREE.Vector3();
@@ -103,7 +88,6 @@ function getScreenCoords(entity, camera) {
     };
 }
 
-// 3. IL CUORE: ANALISI DEI FRAME IN TEMPO REALE
 let lastVideoTime = -1;
 let results = undefined;
 
@@ -119,7 +103,6 @@ async function predictWebcam() {
     results = handLandmarker.detectForVideo(video, startTimeMs);
   }
 
-  // Dimensioni dinamiche del video
   const currentIframeWidth = iframeBaseWidth * videoScale;
   const currentIframeHeight = iframeBaseHeight * videoScale;
 
@@ -128,6 +111,7 @@ async function predictWebcam() {
   
   if (results.landmarks) {
     for (const landmarks of results.landmarks) {
+      // Usiamo di nuovo i comodissimi disegnatori automatici!
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 5 });
       drawLandmarks(canvasCtx, landmarks, { color: "#FF0000", lineWidth: 2 });
       
@@ -144,7 +128,6 @@ async function predictWebcam() {
       const midX_norm = (thumbTip.x + indexTip.x) / 2;
       const midY_norm = (thumbTip.y + indexTip.y) / 2;
 
-      // Coordinate della mano tradotte in spazio 3D approssimativo
       const targetHandX = (midX_norm - 0.5) * 5; 
       const targetHandY = (0.5 - midY_norm) * 5 + 1.5; 
 
@@ -152,7 +135,6 @@ async function predictWebcam() {
       const targetCornerY = cubeCurrentY + ((currentIframeHeight / canvasElement.height) * 2.5);
       const handToCornerDist = Math.hypot(targetHandX - targetCornerX, targetHandY - targetCornerY);
 
-      // FASE DI AGGANCIO
       if (!isPinching && pinchDist < 0.09 && handToCornerDist < 0.4 && !isFist) {
         isPinching = true; 
         startHandSize = currentHandSize; 
@@ -164,12 +146,10 @@ async function predictWebcam() {
       if (isPinching) {
         pinchAlert.style.display = "block"; 
         
-        // Push/Pull - Scala del video
         let targetScale = startVideoScale * (currentHandSize / startHandSize);
         targetScale = Math.max(0.3, Math.min(3.0, targetScale)); 
         videoScale += (targetScale - videoScale) * 0.5; 
 
-        // Spostamento X e Y
         const smoothing = 0.8; 
         const desiredCenterX = targetHandX - ((currentIframeWidth / canvasElement.width) * 2.5);
         const desiredCenterY = targetHandY - ((currentIframeHeight / canvasElement.height) * 2.5);
@@ -181,7 +161,6 @@ async function predictWebcam() {
           ologramEntity.setAttribute("position", `${cubeCurrentX} ${cubeCurrentY} ${cubeCurrentZ}`); 
         }
         
-        // Pallino blu del tocco
         canvasCtx.beginPath();
         canvasCtx.arc(midX_norm * canvasElement.width, midY_norm * canvasElement.height, 15, 0, 2 * Math.PI);
         canvasCtx.fillStyle = "blue";
@@ -191,7 +170,6 @@ async function predictWebcam() {
         pinchAlert.style.display = "none"; 
       }
       
-      // ANCORAGGIO: Posizionamento a schermo del video YouTube
       if (youtubeIframe && ologramEntity) {
         if (!youtubeIframe.getAttribute("src")) {
           youtubeIframe.setAttribute("src", `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1`);
@@ -199,7 +177,6 @@ async function predictWebcam() {
         
         youtubeIframe.style.display = "block"; 
         
-        // Troviamo le coordinate a schermo dell'oggetto 3D
         const screenCoords = getScreenCoords(ologramEntity, cameraEl);
         const screenX = screenCoords.x * canvasElement.width;
         const screenY = screenCoords.y * canvasElement.height;
@@ -210,7 +187,6 @@ async function predictWebcam() {
         youtubeIframe.style.left = `${screenX - (currentIframeWidth / 2)}px`;
         youtubeIframe.style.top = `${screenY - (currentIframeHeight / 2)}px`;
 
-        // Mirino Giallo di presa
         canvasCtx.beginPath();
         const canvasCornerX = screenX + (currentIframeWidth / 2);
         const canvasCornerY = screenY - (currentIframeHeight / 2);
