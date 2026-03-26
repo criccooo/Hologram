@@ -1,44 +1,64 @@
-body { 
-  font-family: roboto, sans-serif; 
-  margin: 2em; 
-  text-align: center; 
+/* file style.css */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* Blocca lo scorrimento accidentale */
+  background-color: black;
+  font-family: sans-serif;
 }
 
-#videoContainer {
-  position: relative;
-  width: 640px; 
-  height: 480px;
-  margin: 20px auto; 
-  background-color: #f0f0f0;
-  border-radius: 10px;
-  overflow: hidden; 
-}
-
-#webcam, #output_canvas, a-scene {
+#webcam, #output_canvas {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* Permette ai tocchi di passare attraverso la scena 3D */
-.a-canvas {
-  pointer-events: none;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover; /* Riempie lo schermo del telefono */
+  z-index: 1;
 }
 
 #output_canvas {
-  z-index: 1; 
-  pointer-events: none; 
+  z-index: 2; /* I disegni della mano vanno sopra la fotocamera */
+  pointer-events: none;
 }
 
-a-scene {
-  z-index: 2; 
+#webcamButton {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 15px 30px;
+  font-size: 20px;
+  font-weight: bold;
+  background-color: #FF0055;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  z-index: 10;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
-/* ❌ ABBIAMO RIMOSSO IL ROTATE-Y CHE SPECCHIAVA IL VIDEO ❌ */
+#pinchAlert {
+  display: none;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: #FF0055;
+  font-size: 24px;
+  font-weight: bold;
+  z-index: 10;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
 
-/* Regola per l'iframe YouTube */
 #youtubeIframe {
-  transform: none !important; 
+  position: absolute;
+  display: none;
+  z-index: 5;
+  border: 3px solid #FF0055;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  pointer-events: auto; /* Permette di cliccare play/pausa sul video */
 }
