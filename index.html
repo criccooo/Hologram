@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Fase 1 (Debug)</title>
+    <title>Esame AR - Fase 1 (Tap Corretto)</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
     </style>
   </head>
   <body>
-    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-hit-test="target: #reticle">
+    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-hit-test="target: #reticle" tap-to-place>
       
       <a-entity id="reticle" 
                 geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
