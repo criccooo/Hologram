@@ -2,34 +2,35 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Visore Homemade</title>
+    <title>AR Visore - Hand Tracking</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     
     <style>
       body { margin: 0; background-color: #000; overflow: hidden; }
-      /* Il video serve all'IA ma deve essere INVISIBILE a te */
+      /* Il video deve esserci per l'AI ma non deve coprire il 3D */
       #hidden-video {
         position: fixed;
+        top: 0; left: 0;
+        width: 1px; height: 1px;
         opacity: 0;
-        pointer-events: none;
       }
     </style>
   </head>
   <body>
     <video id="hidden-video" autoplay playsinline></video>
 
-    <a-scene background="color: black" xr-mode-ui="enabled: true">
+    <a-scene background="color: black" xr-mode-ui="enabled: false">
       
       <a-entity id="ologram-screen" 
                 geometry="primitive: plane; width: 0.6; height: 0.4" 
-                material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 0.5; side: double" 
-                position="0 1.2 -1">
-         <a-text value="AFFERRAMI" align="center" width="2.5" position="0 0 0.02" color="black"></a-text>
+                material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 1; side: double" 
+                position="0 1.5 -1.5">
+         <a-text value="PIZZICA PER MUOVERE" align="center" width="2" position="0 0 0.02" color="black"></a-text>
       </a-entity>
 
-      <a-sphere id="hand-dot" radius="0.02" color="red" visible="false"></a-sphere>
+      <a-sphere id="hand-dot" radius="0.03" color="red" visible="false" material="shader: flat"></a-sphere>
 
       <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
     </a-scene>
