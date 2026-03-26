@@ -2,30 +2,25 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-  <title>AR Hologram</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR YouTube Hologram</title>
   <link rel="stylesheet" href="style.css">
-  
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 </head>
 <body>
-
-  <button id="webcamButton">ACCENDI FOTOCAMERA</button>
   
-  <div id="pinchAlert">PINCH ATTIVO!</div>
-
+  <button id="webcamButton">Caricamento AI...</button>
+  <div id="pinchAlert">PINCH ATTIVO! 🤏</div>
+  
   <video id="webcam" autoplay playsinline></video>
   <canvas id="output_canvas"></canvas>
 
-  <iframe id="youtubeIframe" allow="autoplay; encrypted-media"></iframe>
+  <iframe id="youtubeIframe" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 
-  <a-scene embedded style="position: absolute; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;">
+  <a-scene embedded vr-mode-ui="enabled: false">
     <a-camera position="0 1.6 0"></a-camera>
-    <a-plane id="hologram" position="0 1.5 -3" width="3.2" height="1.8" color="#4CC3D9" opacity="0.0"></a-plane>
+    <a-entity id="hologram" position="0 1.5 -3"></a-entity>
   </a-scene>
 
   <script type="module" src="script.js"></script>
