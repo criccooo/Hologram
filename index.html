@@ -2,7 +2,8 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Fase 2 (Fusione AI)</title>
+    <title>Esame AR - Fase 2 (Fusione AI Completa)</title>
+    
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -12,14 +13,15 @@
     
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
-      /* Nascondiamo il ponte video, lavorerà nell'ombra */
-      #video-ponte { display: none; }
     </style>
   </head>
   <body>
-    <video id="video-ponte" autoplay playsinline></video>
-
-    <a-scene webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: camera-access" ar-hit-test="target: #reticle" tap-to-place>
+    
+    <a-scene 
+      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: camera-access" 
+      ar-hit-test="target: #reticle" 
+      tap-to-place 
+      ai-camera-bridge>
       
       <a-entity id="reticle" 
                 geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
@@ -35,6 +37,7 @@
       </a-entity>
 
       <a-camera position="0 1.6 0"></a-camera>
+      
     </a-scene>
 
     <script src="script.js"></script>
