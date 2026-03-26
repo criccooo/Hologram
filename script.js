@@ -15,6 +15,7 @@ let cubeCurrentX = 0, cubeCurrentY = 1.5, cubeCurrentZ = -3;
 let videoScale = 1.0;
 let isPinching = false;
 let startHandSize = 0, startVideoScale = 1.0;
+let persistPinch = 0; // Contatore per non perdere il pinch se la mano sparisce un attimo
 
 const video = document.getElementById("webcam");
 const canvasElement = document.getElementById("output_canvas");
@@ -70,23 +71,18 @@ async function predictWebcam() {
 
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-  if (results && results.landmarks.length > 0) {
+  if (results && results.landmarks && results.landmarks.length > 0) {
     const landmarks = results.landmarks[0];
-    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
+    
+    // --- RITORNANO I PUNTINI ROSSI E VERDI ---
+    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
+    drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 2 });
     
     const thumb = landmarks[4], index = landmarks[8], wrist = landmarks[0];
-    
-    // Calcolo distanza pinch più preciso (3D-ish)
-    const pinchDist = Math.sqrt(
-      Math.pow(index.x - thumb.x, 2) + 
-      Math.pow(index.y - thumb.y, 2) + 
-      Math.pow(index.z - thumb.z, 2)
-    );
-    
+    const pinchDist = Math.hypot(index.x - thumb.x, index.y - thumb.y, index.z - thumb.z);
     const handSize = Math.hypot(wrist.x - landmarks[9].x, wrist.y - landmarks[9].y);
 
-    // Soglia dinamica: se è già in pinch, permettiamo di allontanare un po' le dita senza perdere il video
-    const threshold = isPinching ? 0.12 : 0.08;
+    const threshold = isPinching ? 0.13 : 0.08;
 
     if (pinchDist < threshold) { 
       if (!isPinching) {
@@ -94,20 +90,27 @@ async function predictWebcam() {
         startHandSize = handSize;
         startVideoScale = videoScale;
       }
+      persistPinch = 10; // Reset della persistenza
+    } else {
+      if (persistPinch > 0) persistPinch--;
+      else isPinching = false;
+    }
 
-      // POSIZIONE: Reattività massima (0.8)
+    if (isPinching) {
+      // COORDINATE (Reattività 1.0 = Istantaneo)
       const targetX = ((thumb.x + index.x) / 2 - 0.5) * 5;
       const targetY = (0.5 - (thumb.y + index.y) / 2) * 5 + 1.5;
 
-      cubeCurrentX += (targetX - cubeCurrentX) * 0.8;
-      cubeCurrentY += (targetY - cubeCurrentY) * 0.8;
+      cubeCurrentX += (targetX - cubeCurrentX) * 0.9;
+      cubeCurrentY += (targetY - cubeCurrentY) * 0.9;
 
-      // SCALA: Ridimensionamento più fluido
       let targetScale = startVideoScale * (handSize / startHandSize);
-      videoScale += (targetScale - videoScale) * 0.3;
-    } else {
-      isPinching = false;
+      videoScale += (targetScale - videoScale) * 0.4;
     }
+  } else {
+    // Se la mano sparisce del tutto
+    if (persistPinch > 0) persistPinch--;
+    else isPinching = false;
   }
 
   const ologramEntity = document.querySelector('#hologram');
@@ -118,9 +121,10 @@ async function predictWebcam() {
     const w = 320 * videoScale;
     const h = 180 * videoScale;
     
-    // FIX ANGOLO IN ALTO A DESTRA:
-    // Le dita (coords.x) devono coincidere con la fine del video (left + width)
-    // Quindi: left = (posizione dita) - larghezza video
+    // POSIZIONAMENTO CORRETTO SULL'ANGOLO ALTO-DESTRA
+    // Il punto 'coords' sono le tue dita. 
+    // Il video deve stare a sinistra delle dita (left = dita - larghezza)
+    // E il video deve stare sotto le dita (top = dita)
     youtubeIframe.style.width = `${w}px`;
     youtubeIframe.style.height = `${h}px`;
     youtubeIframe.style.left = `${(coords.x * window.innerWidth) - w}px`;
