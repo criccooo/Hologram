@@ -2,14 +2,24 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Fase 1 (Tap Corretto)</title>
+    <title>Esame AR - Fase 2 (Fusione AI)</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
+      /* Nascondiamo il ponte video, lavorerà nell'ombra */
+      #video-ponte { display: none; }
     </style>
   </head>
   <body>
-    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-hit-test="target: #reticle" tap-to-place>
+    <video id="video-ponte" autoplay playsinline></video>
+
+    <a-scene webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: camera-access" ar-hit-test="target: #reticle" tap-to-place>
       
       <a-entity id="reticle" 
                 geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
@@ -21,7 +31,7 @@
                 geometry="primitive: plane; width: 1.6; height: 0.9" 
                 material="color: #222222; shader: flat" 
                 visible="false">
-         <a-text value="IL TUO VIDEO\nANDRA' QUI" align="center" position="0 0 0.02" width="3" color="#00FF00"></a-text>
+         <a-text value="IN ATTESA\nDELLE MANI..." align="center" position="0 0 0.02" width="3" color="#00FF00"></a-text>
       </a-entity>
 
       <a-camera position="0 1.6 0"></a-camera>
