@@ -1,6 +1,8 @@
+// file script.js
 import {
   HandLandmarker,
-  FilesetResolver
+  FilesetResolver,
+  DrawingUtils // 👈 FIX: Importiamo gli strumenti di disegno ufficiali!
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
 let handLandmarker = undefined;
@@ -30,6 +32,9 @@ const pinchAlert = document.getElementById("pinchAlert");
 const youtubeIframe = document.getElementById("youtubeIframe"); 
 const ologramEntity = document.querySelector('#hologram');
 const cameraEl = document.querySelector('a-camera');
+
+// Creiamo l'oggetto per disegnare comodamente linee e pallini
+const drawingUtils = new DrawingUtils(canvasCtx);
 
 // 1. Inizializza l'Intelligenza Artificiale
 const createHandLandmarker = async () => {
@@ -101,17 +106,14 @@ async function predictWebcam() {
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   
   if (results && results.landmarks && results.landmarks.length > 0) {
-    const landmarks = results.landmarks[0]; // Rileva la prima mano
+    const landmarks = results.landmarks[0]; 
     
-    // Disegniamo i punti rossi sulla mano manualmente a prova di crash
-    canvasCtx.fillStyle = "#FF0000";
-    for (let i = 0; i < landmarks.length; i++) {
-        const x = landmarks[i].x * canvasElement.width;
-        const y = landmarks[i].y * canvasElement.height;
-        canvasCtx.beginPath();
-        canvasCtx.arc(x, y, 6, 0, 2 * Math.PI);
-        canvasCtx.fill();
-    }
+    // 👇 RIMESSO: Disegna lo scheletro della mano in stile ologramma!
+    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
+      color: "#00FF00",
+      lineWidth: 5
+    });
+    drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 2 });
     
     const wrist = landmarks[0];      
     const thumbTip = landmarks[4];   
@@ -129,7 +131,6 @@ async function predictWebcam() {
     const targetHandX = (midX_norm - 0.5) * 5; 
     const targetHandY = (0.5 - midY_norm) * 5 + 1.5; 
 
-    // Logica Pinch Semplificata: basta unire le dita
     if (!isPinching && pinchDist < 0.08 && !isFist) {
       isPinching = true; 
       startHandSize = currentHandSize; 
@@ -156,7 +157,6 @@ async function predictWebcam() {
         ologramEntity.setAttribute("position", `${cubeCurrentX} ${cubeCurrentY} ${cubeCurrentZ}`); 
       }
       
-      // Pallino blu del tocco
       canvasCtx.beginPath();
       canvasCtx.arc(midX_norm * canvasElement.width, midY_norm * canvasElement.height, 15, 0, 2 * Math.PI);
       canvasCtx.fillStyle = "blue";
@@ -166,27 +166,29 @@ async function predictWebcam() {
       pinchAlert.style.display = "none"; 
     }
     
-    // Forza la comparsa del Video Iframe
+    // 👇 RIMESSO: Il blocco che gestisce il video di YouTube!
     if (youtubeIframe && ologramEntity) {
       if (!youtubeIframe.getAttribute("src")) {
-        // Carica il video (se vuoi cambiare video, modificalo all'inizio del file)
         youtubeIframe.setAttribute("src", `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1`);
       }
       
+      // Accende il video
       youtubeIframe.style.display = "block"; 
       
       const screenCoords = getScreenCoords(ologramEntity, cameraEl);
       
+      // Calcola dove posizionare il video sullo schermo del telefono
       const screenX_UI = screenCoords.x * window.innerWidth;
       const screenY_UI = screenCoords.y * window.innerHeight;
       
       youtubeIframe.style.width = `${currentIframeWidth}px`;
       youtubeIframe.style.height = `${currentIframeHeight}px`;
       
+      // Muove il video fisicamente per seguire la mano
       youtubeIframe.style.left = `${screenX_UI - (currentIframeWidth / 2)}px`;
       youtubeIframe.style.top = `${screenY_UI - (currentIframeHeight / 2)}px`;
 
-      // Anello giallo di ancoraggio
+      // Anello giallo che unisce la mano al video
       canvasCtx.beginPath();
       const canvasCornerX = screenCoords.x * canvasElement.width + (currentIframeWidth / 2);
       const canvasCornerY = screenCoords.y * canvasElement.height - (currentIframeHeight / 2);
