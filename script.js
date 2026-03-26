@@ -7,36 +7,35 @@ const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@me
 hands.setOptions({
   maxNumHands: 1,
   modelComplexity: 1,
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
 });
 
 hands.onResults((results) => {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const landmarks = results.multiHandLandmarks[0];
-    const indexTip = landmarks[8]; // Punta Indice
-    const thumbTip = landmarks[4]; // Punta Pollice
+    const indexTip = landmarks[8]; 
+    const thumbTip = landmarks[4]; 
 
-    // Mappatura coordinate (X e Y del video -> X e Y del mondo 3D)
-    // Usiamo valori più ampi per coprire tutto lo schermo del visore
-    const x = (indexTip.x - 0.5) * 2.5;
-    const y = -(indexTip.y - 0.5) * 1.8 + 1.2;
-    const z = -1; // Lo teniamo a 1 metro di distanza
+    // Mappatura: X va da -1.5 a 1.5, Y va da 0.5 a 2.5
+    const x = (0.5 - indexTip.x) * 3; // Invertito per specchio
+    const y = (0.5 - indexTip.y) * 2 + 1.6;
+    const z = -1.5;
 
     handDot.setAttribute('position', {x, y, z});
     handDot.setAttribute('visible', 'true');
 
-    // CALCOLO DISTANZA PER IL "GRAB" (Pizzico)
-    const dx = indexTip.x - thumbTip.x;
-    const dy = indexTip.y - thumbTip.y;
-    const distance = Math.sqrt(dx*dx + dy*dy);
+    // Calcolo distanza per il "Pizzico"
+    const distance = Math.sqrt(
+      Math.pow(indexTip.x - thumbTip.x, 2) + 
+      Math.pow(indexTip.y - thumbTip.y, 2)
+    );
 
-    if (distance < 0.06) { 
-      // SE PIZZIchi: lo schermo diventa giallo e segue la mano
+    if (distance < 0.08) { 
       handDot.setAttribute('color', 'yellow');
+      // L'ologramma segue la mano
       ologram.setAttribute('position', {x, y, z});
     } else {
-      // SE LASCI: lo schermo torna verde e resta fermo lì
       handDot.setAttribute('color', 'red');
     }
   } else {
@@ -45,7 +44,13 @@ hands.onResults((results) => {
 });
 
 const camera = new Camera(videoElement, {
-  onFrame: async () => { await hands.send({image: videoElement}); },
+  onFrame: async () => {
+    await hands.send({image: videoElement});
+  },
+  width: 640,
+  height: 480
+});
+camera.start();
   width: 1280, height: 720
 });
 camera.start();
