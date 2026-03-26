@@ -2,8 +2,10 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Fase 2.1 (Il Puntatore 3D)</title>
+    <title>Esame AR - Fase 2 (Piano B: Doppia Cam)</title>
+    
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -11,23 +13,30 @@
     
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
-      /* Nascondiamo i video e i canvas spazzatura 2D, teniamo solo quello di A-Frame */
+      /* Nascondiamo qualsiasi video 2D generato in automatico dall'AI, vogliamo vedere solo il 3D */
       video, canvas { display: none !important; }
       .a-canvas { display: block !important; }
     </style>
   </head>
   <body>
     
-    <a-scene webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: camera-access" ar-hit-test="target: #reticle" tap-to-place ai-camera-bridge>
+    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-hit-test="target: #reticle" tap-to-place>
       
-      <a-entity id="reticle" geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" material="color: #00FF00; shader: flat" rotation="-90 0 0"></a-entity>
+      <a-entity id="reticle" 
+                geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
+                material="color: #00FF00; shader: flat" 
+                rotation="-90 0 0">
+      </a-entity>
       
-      <a-entity id="ologram-screen" geometry="primitive: plane; width: 1.6; height: 0.9" material="color: #222222; shader: flat" visible="false">
+      <a-entity id="ologram-screen" 
+                geometry="primitive: plane; width: 1.6; height: 0.9" 
+                material="color: #222222; shader: flat" 
+                visible="false">
          <a-text value="USA LA SFERA ROSSA\nPER INTERAGIRE" align="center" position="0 0 0.02" width="3" color="#00FF00"></a-text>
       </a-entity>
 
       <a-camera position="0 1.6 0">
-        <a-sphere id="ai-cursor" radius="0.015" color="#FF0000" position="0 0 -0.5" visible="false"></a-sphere>
+        <a-sphere id="ai-cursor" radius="0.015" color="#FF0000" position="0 0 -0.5" visible="false" material="shader: flat"></a-sphere>
       </a-camera>
       
     </a-scene>
