@@ -1,10 +1,9 @@
-/* file style.css */
-html, body {
+body, html {
   margin: 0;
   padding: 0;
   width: 100vw;
   height: 100vh;
-  overflow: hidden; /* Blocca lo scorrimento accidentale */
+  overflow: hidden;
   background-color: black;
   font-family: sans-serif;
 }
@@ -15,13 +14,23 @@ html, body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  object-fit: cover; /* Riempie lo schermo del telefono */
+  object-fit: cover;
   z-index: 1;
 }
 
 #output_canvas {
-  z-index: 2; /* I disegni della mano vanno sopra la fotocamera */
+  z-index: 2;
   pointer-events: none;
+}
+
+/* Nascondiamo la scena 3D dietro tutto, ci serve solo per i calcoli */
+a-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0; 
 }
 
 #webcamButton {
@@ -55,10 +64,10 @@ html, body {
 
 #youtubeIframe {
   position: absolute;
-  display: none;
+  display: none; /* Inizialmente invisibile, lo accende il JS */
   z-index: 5;
   border: 3px solid #FF0055;
   border-radius: 12px;
   box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-  pointer-events: auto; /* Permette di cliccare play/pausa sul video */
+  pointer-events: auto; 
 }
