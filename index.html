@@ -1,28 +1,34 @@
 <!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR YouTube Hologram</title>
-  <link rel="stylesheet" href="style.css">
-  
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-</head>
-<body>
-  
-  <button id="webcamButton">Caricamento AI...</button>
-  <div id="pinchAlert">PINCH ATTIVO! 🤏</div>
-  
-  <video id="webcam" autoplay playsinline></video>
-  <canvas id="output_canvas"></canvas>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Esame AR - Fase 1 (SLAM)</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; background: #000; }
+    </style>
+  </head>
+  <body>
+    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-controller>
+      
+      <a-entity id="reticle" 
+                geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
+                material="color: #00FF00; shader: flat" 
+                rotation="-90 0 0" 
+                visible="false">
+      </a-entity>
+      
+      <a-entity id="ologram-screen" 
+                geometry="primitive: plane; width: 1.6; height: 0.9" 
+                material="color: #222222; shader: flat" 
+                position="0 -10 -10" 
+                visible="false">
+         <a-text value="IL TUO VIDEO\nANDRA' QUI" align="center" position="0 0 0.02" width="3" color="#00FF00"></a-text>
+      </a-entity>
 
-  <iframe id="youtubeIframe" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <a-camera position="0 1.6 0"></a-camera>
+    </a-scene>
 
-  <a-scene embedded vr-mode-ui="enabled: false">
-    <a-camera position="0 1.6 0"></a-camera>
-    <a-entity id="hologram" position="0 1.5 -3"></a-entity>
-  </a-scene>
-
-  <script type="module" src="script.js"></script>
-</body>
+    <script src="script.js" type="module"></script>
+  </body>
 </html>
