@@ -34,6 +34,7 @@ const youtubeIframe = document.getElementById("youtubeIframe");
 const ologramEntity = document.querySelector('#hologram');
 const cameraEl = document.querySelector('a-camera');
 
+// 1. CARICAMENTO DEL MODELLO AI
 const createHandLandmarker = async () => {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
@@ -50,6 +51,7 @@ const createHandLandmarker = async () => {
 };
 createHandLandmarker();
 
+// 2. GESTIONE FOTOCAMERA (Ambiente + Schermo Intero)
 if (!!navigator.mediaDevices?.getUserMedia) {
   enableWebcamButton.addEventListener("click", enableCam);
 }
@@ -76,6 +78,7 @@ function enableCam(event) {
   }
 }
 
+// Calcolo coordinate da 3D a 2D
 function getScreenCoords(entity, camera) {
     const object3D = entity.object3D;
     const vector = new THREE.Vector3();
@@ -88,12 +91,12 @@ function getScreenCoords(entity, camera) {
     };
 }
 
+// 3. IL CUORE: ANALISI DEI FRAME IN TEMPO REALE
 let lastVideoTime = -1;
 let results = undefined;
 
 async function predictWebcam() {
-  canvasElement.style.width = video.videoWidth + "px";
-  canvasElement.style.height = video.videoHeight + "px";
+  // 👇 FIX 1: Impostiamo SOLO la risoluzione interna del canvas per evitare sfasamenti
   canvasElement.width = video.videoWidth;
   canvasElement.height = video.videoHeight;
   
@@ -111,7 +114,6 @@ async function predictWebcam() {
   
   if (results.landmarks) {
     for (const landmarks of results.landmarks) {
-      // Usiamo di nuovo i comodissimi disegnatori automatici!
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 5 });
       drawLandmarks(canvasCtx, landmarks, { color: "#FF0000", lineWidth: 2 });
       
@@ -178,18 +180,20 @@ async function predictWebcam() {
         youtubeIframe.style.display = "block"; 
         
         const screenCoords = getScreenCoords(ologramEntity, cameraEl);
-        const screenX = screenCoords.x * canvasElement.width;
-        const screenY = screenCoords.y * canvasElement.height;
+        
+        // 👇 FIX 2: Usiamo window.innerWidth per posizionare il video nello SCHERMO reale
+        const screenX_UI = screenCoords.x * window.innerWidth;
+        const screenY_UI = screenCoords.y * window.innerHeight;
         
         youtubeIframe.style.width = `${currentIframeWidth}px`;
         youtubeIframe.style.height = `${currentIframeHeight}px`;
         
-        youtubeIframe.style.left = `${screenX - (currentIframeWidth / 2)}px`;
-        youtubeIframe.style.top = `${screenY - (currentIframeHeight / 2)}px`;
+        youtubeIframe.style.left = `${screenX_UI - (currentIframeWidth / 2)}px`;
+        youtubeIframe.style.top = `${screenY_UI - (currentIframeHeight / 2)}px`;
 
         canvasCtx.beginPath();
-        const canvasCornerX = screenX + (currentIframeWidth / 2);
-        const canvasCornerY = screenY - (currentIframeHeight / 2);
+        const canvasCornerX = screenCoords.x * canvasElement.width + (currentIframeWidth / 2);
+        const canvasCornerY = screenCoords.y * canvasElement.height - (currentIframeHeight / 2);
         canvasCtx.arc(canvasCornerX, canvasCornerY, 12 * videoScale, 0, 2 * Math.PI);
         canvasCtx.strokeStyle = isPinching ? "#FF0055" : "yellow"; 
         canvasCtx.lineWidth = 4 * videoScale;
