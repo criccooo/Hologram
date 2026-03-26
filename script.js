@@ -2,7 +2,7 @@
 import {
   HandLandmarker,
   FilesetResolver,
-  DrawingUtils // 👈 FIX: Importiamo gli strumenti di disegno ufficiali!
+  DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
 let handLandmarker = undefined;
@@ -14,6 +14,8 @@ let results = undefined;
 const youtubeVideoId = "dQw4w9WgXcQ"; 
 
 let isPinching = false; 
+
+// Coordinate iniziali fisse (Centro dello schermo)
 let cubeCurrentX = 0;
 let cubeCurrentY = 1.5;
 let cubeCurrentZ = -3; 
@@ -33,10 +35,9 @@ const youtubeIframe = document.getElementById("youtubeIframe");
 const ologramEntity = document.querySelector('#hologram');
 const cameraEl = document.querySelector('a-camera');
 
-// Creiamo l'oggetto per disegnare comodamente linee e pallini
 const drawingUtils = new DrawingUtils(canvasCtx);
 
-// 1. Inizializza l'Intelligenza Artificiale
+// 1. Inizializza l'AI
 const createHandLandmarker = async () => {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
@@ -53,18 +54,16 @@ const createHandLandmarker = async () => {
 };
 createHandLandmarker();
 
-// 2. Accendi la Webcam (Orizzontale)
+// 2. Accendi la Webcam
 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
   enableWebcamButton.addEventListener("click", () => {
     if (!handLandmarker) return;
     webcamRunning = true;
     enableWebcamButton.style.display = "none";
     
-    // Forza Schermo Intero
     const elem = document.documentElement;
     if (elem.requestFullscreen) elem.requestFullscreen().catch(err => console.log(err));
     
-    // Usa fotocamera posteriore
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
       video.srcObject = stream;
       video.addEventListener("loadeddata", predictWebcam);
@@ -72,23 +71,27 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
   });
 }
 
-// Calcolatore coordinate da 3D a schermo
+// 👇 IL FIX: Il paracadute di sicurezza per evitare che A-Frame blocchi il codice
 function getScreenCoords(entity, camera) {
-    if (!entity || !entity.object3D || !camera || !camera.components.camera) {
-        return { x: 0.5, y: 0.5 }; 
+    if (!entity || !entity.object3D || !camera || !camera.components.camera || typeof window.THREE === 'undefined') {
+        return { x: 0.5, y: 0.5 }; // Se non è pronto, metti il video al centro
     }
-    const object3D = entity.object3D;
-    const vector = new THREE.Vector3();
-    object3D.updateMatrixWorld();
-    vector.setFromMatrixPosition(object3D.matrixWorld);
-    vector.project(camera.components.camera.camera);
-    return {
-        x: (vector.x + 1) / 2,
-        y: (-vector.y + 1) / 2
-    };
+    try {
+        const object3D = entity.object3D;
+        const vector = new window.THREE.Vector3();
+        object3D.updateMatrixWorld();
+        vector.setFromMatrixPosition(object3D.matrixWorld);
+        vector.project(camera.components.camera.camera);
+        return {
+            x: (vector.x + 1) / 2,
+            y: (-vector.y + 1) / 2
+        };
+    } catch (e) {
+        return { x: 0.5, y: 0.5 };
+    }
 }
 
-// 3. Analisi e Disegno Frame per Frame
+// 3. Analisi e Disegno
 async function predictWebcam() {
   canvasElement.width = video.videoWidth;
   canvasElement.height = video.videoHeight;
@@ -105,14 +108,11 @@ async function predictWebcam() {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   
+  // -- BLOCCO MANO --
   if (results && results.landmarks && results.landmarks.length > 0) {
     const landmarks = results.landmarks[0]; 
     
-    // 👇 RIMESSO: Disegna lo scheletro della mano in stile ologramma!
-    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
-      color: "#00FF00",
-      lineWidth: 5
-    });
+    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 5 });
     drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 2 });
     
     const wrist = landmarks[0];      
@@ -131,6 +131,7 @@ async function predictWebcam() {
     const targetHandX = (midX_norm - 0.5) * 5; 
     const targetHandY = (0.5 - midY_norm) * 5 + 1.5; 
 
+    // Attivazione Pinch
     if (!isPinching && pinchDist < 0.08 && !isFist) {
       isPinching = true; 
       startHandSize = currentHandSize; 
@@ -152,10 +153,6 @@ async function predictWebcam() {
       
       cubeCurrentX += (desiredCenterX - cubeCurrentX) * smoothing;
       cubeCurrentY += (desiredCenterY - cubeCurrentY) * smoothing;
-
-      if (ologramEntity) {
-        ologramEntity.setAttribute("position", `${cubeCurrentX} ${cubeCurrentY} ${cubeCurrentZ}`); 
-      }
       
       canvasCtx.beginPath();
       canvasCtx.arc(midX_norm * canvasElement.width, midY_norm * canvasElement.height, 15, 0, 2 * Math.PI);
@@ -165,39 +162,41 @@ async function predictWebcam() {
     } else {
       pinchAlert.style.display = "none"; 
     }
-    
-    // 👇 RIMESSO: Il blocco che gestisce il video di YouTube!
-    if (youtubeIframe && ologramEntity) {
-      if (!youtubeIframe.getAttribute("src")) {
-        youtubeIframe.setAttribute("src", `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1`);
-      }
-      
-      // Accende il video
-      youtubeIframe.style.display = "block"; 
-      
-      const screenCoords = getScreenCoords(ologramEntity, cameraEl);
-      
-      // Calcola dove posizionare il video sullo schermo del telefono
-      const screenX_UI = screenCoords.x * window.innerWidth;
-      const screenY_UI = screenCoords.y * window.innerHeight;
-      
-      youtubeIframe.style.width = `${currentIframeWidth}px`;
-      youtubeIframe.style.height = `${currentIframeHeight}px`;
-      
-      // Muove il video fisicamente per seguire la mano
-      youtubeIframe.style.left = `${screenX_UI - (currentIframeWidth / 2)}px`;
-      youtubeIframe.style.top = `${screenY_UI - (currentIframeHeight / 2)}px`;
-
-      // Anello giallo che unisce la mano al video
-      canvasCtx.beginPath();
-      const canvasCornerX = screenCoords.x * canvasElement.width + (currentIframeWidth / 2);
-      const canvasCornerY = screenCoords.y * canvasElement.height - (currentIframeHeight / 2);
-      canvasCtx.arc(canvasCornerX, canvasCornerY, 12 * videoScale, 0, 2 * Math.PI);
-      canvasCtx.strokeStyle = isPinching ? "#FF0055" : "yellow"; 
-      canvasCtx.lineWidth = 4 * videoScale;
-      canvasCtx.stroke();
-    }
+  } else {
+      isPinching = false;
+      pinchAlert.style.display = "none"; 
   }
+  
+  // -- BLOCCO VIDEO --
+  if (youtubeIframe && ologramEntity) {
+    // 👇 FIX: Forza il blocco sempre acceso ad ogni frame!
+    youtubeIframe.style.display = "block"; 
+
+    if (!youtubeIframe.getAttribute("src")) {
+      youtubeIframe.setAttribute("src", `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1`);
+    }
+    
+    ologramEntity.setAttribute("position", `${cubeCurrentX} ${cubeCurrentY} ${cubeCurrentZ}`); 
+    const screenCoords = getScreenCoords(ologramEntity, cameraEl);
+    
+    const screenX_UI = screenCoords.x * window.innerWidth;
+    const screenY_UI = screenCoords.y * window.innerHeight;
+    
+    youtubeIframe.style.width = `${currentIframeWidth}px`;
+    youtubeIframe.style.height = `${currentIframeHeight}px`;
+    youtubeIframe.style.left = `${screenX_UI - (currentIframeWidth / 2)}px`;
+    youtubeIframe.style.top = `${screenY_UI - (currentIframeHeight / 2)}px`;
+
+    canvasCtx.beginPath();
+    // 👇 FIX: Ora l'anello giallo è esattamente centrato sul video
+    const canvasCenterX = screenCoords.x * canvasElement.width;
+    const canvasCenterY = screenCoords.y * canvasElement.height;
+    canvasCtx.arc(canvasCenterX, canvasCenterY, 12 * videoScale, 0, 2 * Math.PI);
+    canvasCtx.strokeStyle = isPinching ? "#FF0055" : "yellow"; 
+    canvasCtx.lineWidth = 4 * videoScale;
+    canvasCtx.stroke();
+  }
+  
   canvasCtx.restore();
 
   if (webcamRunning) {
