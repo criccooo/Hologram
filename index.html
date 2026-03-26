@@ -8,21 +8,27 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     
     <style>
-      body { margin: 0; background-color: #000; overflow: hidden; }
-      /* Il video deve esserci per l'AI ma non deve coprire il 3D */
-      #hidden-video {
-        position: fixed;
-        top: 0; left: 0;
-        width: 1px; height: 1px;
-        opacity: 0;
+      body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
+      #start-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9); z-index: 999;
+        display: flex; align-items: center; justify-content: center;
       }
+      button {
+        padding: 20px 40px; font-size: 20px; cursor: pointer;
+        background: #00FF00; border: none; border-radius: 10px; font-weight: bold;
+      }
+      #hidden-video { position: fixed; opacity: 0; width: 1px; height: 1px; }
     </style>
   </head>
   <body>
+    <div id="start-overlay">
+      <button onclick="startExperience()">AVVIA ESPERIENZA AR</button>
+    </div>
+
     <video id="hidden-video" autoplay playsinline></video>
 
     <a-scene background="color: black" xr-mode-ui="enabled: false">
-      
       <a-entity id="ologram-screen" 
                 geometry="primitive: plane; width: 0.6; height: 0.4" 
                 material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 1; side: double" 
@@ -30,8 +36,7 @@
          <a-text value="PIZZICA PER MUOVERE" align="center" width="2" position="0 0 0.02" color="black"></a-text>
       </a-entity>
 
-      <a-sphere id="hand-dot" radius="0.03" color="red" visible="false" material="shader: flat"></a-sphere>
-
+      <a-sphere id="hand-dot" radius="0.03" color="red" visible="false"></a-sphere>
       <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
     </a-scene>
 
