@@ -1,94 +1,51 @@
-// ==========================================
-// 1. MOTORE INTELLIGENZA ARTIFICIALE (Mani)
-// ==========================================
+const videoElement = document.getElementById('hidden-video');
+const handDot = document.getElementById('hand-dot');
+const ologram = document.getElementById('ologram-screen');
 
-// Creiamo un video invisibile che cattura la realtà per l'AI
-const videoElement = document.createElement('video');
-videoElement.style.display = 'none';
-videoElement.setAttribute('autoplay', '');
-videoElement.setAttribute('playsinline', '');
-document.body.appendChild(videoElement);
-
-const hands = new Hands({locateFile: (file) => {
-  return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-}});
+const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 
 hands.setOptions({
-  maxNumHands: 1, // Alleggeriamo il telefono cercando una sola mano
+  maxNumHands: 1,
   modelComplexity: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6
 });
 
-// Cosa fa l'AI quando processa un fotogramma
 hands.onResults((results) => {
-  const aiCursor = document.getElementById('ai-cursor');
-  
-  // Se la scena 3D non ha ancora caricato il cursore, fermati
-  if (!aiCursor) return; 
-
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    // 1. MANO TROVATA: Mostra la pallina rossa
-    aiCursor.setAttribute('visible', 'true'); 
-    
-    // 2. Prendi il punto 8 (la punta dell'indice)
-    const indexFinger = results.multiHandLandmarks[0][8]; 
-    
-    // 3. Converti le coordinate 2D del video in coordinate 3D per A-Frame
-    // Moltiplichiamo per 0.6 per far muovere la pallina in un raggio comodo
-    const mappedX = (indexFinger.x - 0.5) * 0.6; 
-    const mappedY = -(indexFinger.y - 0.5) * 0.6; // In 3D la Y va verso l'alto, nei video verso il basso, quindi la invertiamo
-    
-    // 4. Sposta fisicamente la pallina!
-    aiCursor.setAttribute('position', { x: mappedX, y: mappedY, z: -0.5 });
+    const landmarks = results.multiHandLandmarks[0];
+    const indexTip = landmarks[8]; // Punta Indice
+    const thumbTip = landmarks[4]; // Punta Pollice
+
+    // Mappatura coordinate (X e Y del video -> X e Y del mondo 3D)
+    // Usiamo valori più ampi per coprire tutto lo schermo del visore
+    const x = (indexTip.x - 0.5) * 2.5;
+    const y = -(indexTip.y - 0.5) * 1.8 + 1.2;
+    const z = -1; // Lo teniamo a 1 metro di distanza
+
+    handDot.setAttribute('position', {x, y, z});
+    handDot.setAttribute('visible', 'true');
+
+    // CALCOLO DISTANZA PER IL "GRAB" (Pizzico)
+    const dx = indexTip.x - thumbTip.x;
+    const dy = indexTip.y - thumbTip.y;
+    const distance = Math.sqrt(dx*dx + dy*dy);
+
+    if (distance < 0.06) { 
+      // SE PIZZIchi: lo schermo diventa giallo e segue la mano
+      handDot.setAttribute('color', 'yellow');
+      ologram.setAttribute('position', {x, y, z});
+    } else {
+      // SE LASCI: lo schermo torna verde e resta fermo lì
+      handDot.setAttribute('color', 'red');
+    }
   } else {
-    // NESSUNA MANO: Nascondi la pallina
-    aiCursor.setAttribute('visible', 'false'); 
+    handDot.setAttribute('visible', 'false');
   }
 });
 
-// Accendiamo la fotocamera classica e spariamo i frame dentro l'AI
 const camera = new Camera(videoElement, {
-  onFrame: async () => {
-    await hands.send({image: videoElement});
-  },
-  width: 640,
-  height: 480
+  onFrame: async () => { await hands.send({image: videoElement}); },
+  width: 1280, height: 720
 });
-// ATTENZIONE: Questo farà apparire la richiesta "Consenti uso fotocamera"
-camera.start(); 
-
-
-// ==========================================
-// 2. MOTORE REALTÀ AUMENTATA (Pavimento)
-// ==========================================
-
-AFRAME.registerComponent('tap-to-place', {
-  init: function () {
-    const reticle = document.getElementById('reticle');
-    const screen = document.getElementById('ologram-screen');
-    const sceneEl = this.el;
-    
-    let objectPlaced = false;
-
-    // Quando tocchi lo schermo per confermare il pavimento
-    sceneEl.addEventListener('ar-hit-test-select', function () {
-      if (objectPlaced) return; 
-
-      const position = reticle.getAttribute('position');
-      
-      // Piazza lo schermo 45cm sopra il pavimento
-      screen.setAttribute('position', { x: position.x, y: position.y + 0.45, z: position.z });
-      
-      // Fallo ruotare verso l'utente
-      const cameraYRotation = document.querySelector('a-camera').getAttribute('rotation').y;
-      screen.setAttribute('rotation', { x: 0, y: cameraYRotation, z: 0 });
-
-      screen.setAttribute('visible', 'true');
-      reticle.setAttribute('visible', 'false');
-      sceneEl.removeAttribute('ar-hit-test');
-      
-      objectPlaced = true;
-    });
-  }
-});
+camera.start();
