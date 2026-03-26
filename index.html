@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Esame AR - Fase 1 (SLAM)</title>
+    <title>Esame AR - Fase 1 (SLAM Corretto)</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
     </style>
   </head>
   <body>
-    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-controller>
+    <a-scene webxr="requiredFeatures: hit-test, local-floor" ar-hit-test="target: #reticle">
       
       <a-entity id="reticle" 
                 geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
@@ -21,7 +21,6 @@
       <a-entity id="ologram-screen" 
                 geometry="primitive: plane; width: 1.6; height: 0.9" 
                 material="color: #222222; shader: flat" 
-                position="0 -10 -10" 
                 visible="false">
          <a-text value="IL TUO VIDEO\nANDRA' QUI" align="center" position="0 0 0.02" width="3" color="#00FF00"></a-text>
       </a-entity>
@@ -29,6 +28,6 @@
       <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
-    <script src="script.js" type="module"></script>
+    <script src="script.js"></script>
   </body>
 </html>
