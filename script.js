@@ -38,21 +38,18 @@ const init = async () => {
     baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
     runningMode: "VIDEO", numHands: 1
   });
-  document.getElementById("webcamButton").innerText = "AVVIA OLOGRAMMA";
+  document.getElementById("webcamButton").innerText = "AVVIA AR";
 };
 init();
 
 document.getElementById("webcamButton").addEventListener("click", async () => {
-  // FORZA FULL SCREEN SU CHROME
   try {
     const docEl = document.documentElement;
     if (docEl.requestFullscreen) await docEl.requestFullscreen();
-    else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
-  } catch (err) { console.log("Errore Fullscreen:", err); }
+  } catch (err) { console.log(err); }
 
   webcamRunning = true;
   document.getElementById("webcamButton").style.display = "none";
-  
   youtubeIframe.src = `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1&enablejsapi=1`;
   youtubeIframe.style.display = "block";
 
@@ -75,31 +72,39 @@ async function predictWebcam() {
 
   if (results && results.landmarks.length > 0) {
     const landmarks = results.landmarks[0];
-    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
+    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
     
     const thumb = landmarks[4], index = landmarks[8], wrist = landmarks[0];
-    const pinchDist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
+    
+    // Calcolo distanza pinch più preciso (3D-ish)
+    const pinchDist = Math.sqrt(
+      Math.pow(index.x - thumb.x, 2) + 
+      Math.pow(index.y - thumb.y, 2) + 
+      Math.pow(index.z - thumb.z, 2)
+    );
+    
     const handSize = Math.hypot(wrist.x - landmarks[9].x, wrist.y - landmarks[9].y);
 
-    // PINCH PIÙ RESISTENTE: Soglia leggermente alzata per non perdere la presa
-    if (pinchDist < 0.10) { 
+    // Soglia dinamica: se è già in pinch, permettiamo di allontanare un po' le dita senza perdere il video
+    const threshold = isPinching ? 0.12 : 0.08;
+
+    if (pinchDist < threshold) { 
       if (!isPinching) {
         isPinching = true;
         startHandSize = handSize;
         startVideoScale = videoScale;
       }
 
-      // REATTIVITÀ: Smoothing ridotto a 0.5 per seguire velocemente
-      const responsiveness = 0.5;
+      // POSIZIONE: Reattività massima (0.8)
       const targetX = ((thumb.x + index.x) / 2 - 0.5) * 5;
       const targetY = (0.5 - (thumb.y + index.y) / 2) * 5 + 1.5;
 
-      cubeCurrentX += (targetX - cubeCurrentX) * responsiveness;
-      cubeCurrentY += (targetY - cubeCurrentY) * responsiveness;
+      cubeCurrentX += (targetX - cubeCurrentX) * 0.8;
+      cubeCurrentY += (targetY - cubeCurrentY) * 0.8;
 
-      // Scaling dinamico
+      // SCALA: Ridimensionamento più fluido
       let targetScale = startVideoScale * (handSize / startHandSize);
-      videoScale += (targetScale - videoScale) * 0.2;
+      videoScale += (targetScale - videoScale) * 0.3;
     } else {
       isPinching = false;
     }
@@ -113,12 +118,13 @@ async function predictWebcam() {
     const w = 320 * videoScale;
     const h = 180 * videoScale;
     
-    // POSIZIONAMENTO NELL'ANGOLO IN ALTO A DESTRA
-    // Invece di sottrarre la metà della larghezza (centro), usiamo l'intera larghezza
+    // FIX ANGOLO IN ALTO A DESTRA:
+    // Le dita (coords.x) devono coincidere con la fine del video (left + width)
+    // Quindi: left = (posizione dita) - larghezza video
     youtubeIframe.style.width = `${w}px`;
     youtubeIframe.style.height = `${h}px`;
-    youtubeIframe.style.left = `${(coords.x * window.innerWidth) - w}px`; // Angolo DX
-    youtubeIframe.style.top = `${(coords.y * window.innerHeight)}px`;     // Angolo ALTO
+    youtubeIframe.style.left = `${(coords.x * window.innerWidth) - w}px`;
+    youtubeIframe.style.top = `${(coords.y * window.innerHeight)}px`;
   }
 
   requestAnimationFrame(predictWebcam);
