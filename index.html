@@ -1,0 +1,44 @@
+<link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+<script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+<h1>AR YouTube Player + Hand Tracking</h1>
+
+<button id="webcamButton" class="mdc-button mdc-button--raised">
+  <span class="mdc-button__label">ACCENDI WEBCAM</span>
+</button>
+
+<div id="pinchAlert" style="display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: #ff0055; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-family: sans-serif; z-index: 100;">🤌 PINCH RILEVATO!</div>
+
+<div id="videoContainer">
+  
+  <video id="webcam" autoplay playsinline></video>
+  
+  <canvas id="output_canvas"></canvas>
+  
+  <a-scene embedded transparent="true" vr-mode-ui="enabled: false" loading-screen="enabled: false">
+    <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
+    
+    <a-plane id="hologram" 
+             position="0 1.5 -3" 
+             width="3.0" 
+             height="1.6875" 
+             color="#4CC3D9" 
+             material="side: double; shader: flat; opacity: 0.1">
+    </a-plane>
+  </a-scene>
+
+  <iframe id="youtubeIframe"
+          style="display: none; position: absolute; left: 0px; top: 0px; z-index: 15; pointer-events: auto;"
+          width="320"
+          height="180"
+          src=""
+          title="YouTube video player"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+  </iframe>
+
+</div>

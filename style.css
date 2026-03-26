@@ -1,0 +1,44 @@
+body { 
+  font-family: roboto, sans-serif; 
+  margin: 2em; 
+  text-align: center; 
+}
+
+#videoContainer {
+  position: relative;
+  width: 640px; 
+  height: 480px;
+  margin: 20px auto; 
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden; 
+}
+
+#webcam, #output_canvas, a-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Permette ai tocchi di passare attraverso la scena 3D */
+.a-canvas {
+  pointer-events: none;
+}
+
+#output_canvas {
+  z-index: 1; 
+  pointer-events: none; 
+}
+
+a-scene {
+  z-index: 2; 
+}
+
+/* ❌ ABBIAMO RIMOSSO IL ROTATE-Y CHE SPECCHIAVA IL VIDEO ❌ */
+
+/* Regola per l'iframe YouTube */
+#youtubeIframe {
+  transform: none !important; 
+}
