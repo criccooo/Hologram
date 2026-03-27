@@ -55,25 +55,31 @@
         });
 
         // 2. RETE MQTT
-        const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        // 2. RETE MQTT
+        const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt'); // CONTROLLA CHE SIA QUESTO
         const topicSegreto = 'esame_ar_visore_2026_super_segreto'; 
 
         mqttClient.on('connect', () => {
-            console.log("PC Connesso a Internet!");
+            console.log("PC CONNESSO AL SERVER EMQX!");
             if (!oggettoPiazzato) {
                 testoOlogramma.setAttribute('value', 'PC CONNESSO.\nCLICCA LO SCHERMO NERO');
             }
         });
 
         mqttClient.on('message', (topic, message) => {
+            // QUESTO CI DICE SE IL MESSAGGIO ARRIVA FISICAMENTE AL PC
+            console.log("BINGO! Messaggio ricevuto:", message.toString()); 
+            
             if (oggettoPiazzato) {
-                const dati = JSON.parse(message.toString());
-                
-                // TEST VISIVO SUPREMO
-                testoOlogramma.setAttribute('value', `RICEVO: X ${dati.x.toFixed(2)}`);
-                
-                // Spostiamo l'oggetto in base alla tua mano
-                ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
+                try {
+                    const dati = JSON.parse(message.toString());
+                    testoOlogramma.setAttribute('value', `RICEVO: X ${dati.x.toFixed(2)}`);
+                    ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
+                } catch (errore) {
+                    console.error("Errore nel leggere le coordinate:", errore);
+                }
+            } else {
+                console.log("Messaggio ignorato: devi prima cliccare lo schermo per piazzare l'oggetto.");
             }
         });
     </script>
