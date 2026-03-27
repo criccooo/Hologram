@@ -1,45 +1,42 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta charset="utf-8">
-    <title>AR Visore - Hand Tracking</title>
+    <title>AR SLAM + Mani (WebXR Camera Access)</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
-      body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
-      #start-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 999;
-        display: flex; align-items: center; justify-content: center;
-      }
-      button {
-        padding: 20px 40px; font-size: 20px; cursor: pointer;
-        background: #00FF00; border: none; border-radius: 10px; font-weight: bold;
-      }
-      #hidden-video { position: fixed; opacity: 0; width: 1px; height: 1px; }
+        body { margin: 0; overflow: hidden; background: #000; }
+        /* Il canvas dove "stampiamo" i frame segreti estratti da WebXR */
+        #extraction-canvas { display: none; }
     </style>
-  </head>
-  <body>
-    <div id="start-overlay">
-      <button onclick="startExperience()">AVVIA ESPERIENZA AR</button>
-    </div>
+</head>
+<body>
 
-    <video id="hidden-video" autoplay playsinline></video>
+    <canvas id="extraction-canvas" width="640" height="480"></canvas>
 
-    <a-scene background="color: black" xr-mode-ui="enabled: false">
-      <a-entity id="ologram-screen" 
-                geometry="primitive: plane; width: 0.6; height: 0.4" 
-                material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 1; side: double" 
-                position="0 1.5 -1.5">
-         <a-text value="PIZZICA PER MUOVERE" align="center" width="2" position="0 0 0.02" color="black"></a-text>
-      </a-entity>
+    <a-scene webxr="requiredFeatures: hit-test, camera-access" ar-hit-test="target: #reticle" xr-camera-bridge>
+        
+        <a-entity id="reticle" 
+                  geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
+                  material="color: #00FF00; shader: flat" 
+                  rotation="-90 0 0">
+        </a-entity>
 
-      <a-sphere id="hand-dot" radius="0.03" color="red" visible="false"></a-sphere>
-      <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
+        <a-entity id="ologram-screen" 
+                  geometry="primitive: plane; width: 0.6; height: 0.4" 
+                  material="color: #00FF00; emissive: #00FF00; emissiveIntensity: 0.5; side: double" 
+                  visible="false">
+             <a-text value="AFFERRATO!" id="status-text" align="center" width="2" position="0 0 0.02" visible="false"></a-text>
+        </a-entity>
+
+        <a-camera position="0 1.6 0">
+            <a-sphere id="hand-dot" radius="0.02" color="red" position="0 0 -0.5" visible="false" material="shader: flat"></a-sphere>
+        </a-camera>
+        
     </a-scene>
 
     <script src="script.js"></script>
-  </body>
+</body>
 </html>
