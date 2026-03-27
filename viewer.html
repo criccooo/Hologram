@@ -5,7 +5,7 @@
     <title>AR Viewer - Vista Professore</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
-    <style> body { margin: 0; overflow: hidden; font-family: sans-serif; } </style>
+    <style> body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #222; } </style>
 </head>
 <body>
 
@@ -19,18 +19,18 @@
                       geometry="primitive: plane; width: 0.6; height: 0.4" 
                       material="color: #00FF00; emissive: #00FF00; side: double; opacity: 0.8" 
                       position="0 1.5 -1.5">
-                 <a-text value="IN ATTESA DELLO STUDENTE..." align="center" width="2" position="0 0 0.02" color="black"></a-text>
+                 <a-text value="INIZIALIZZAZIONE..." align="center" width="2" position="0 0 0.02" color="black"></a-text>
             </a-entity>
         </a-entity>
 
         <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
-   <script>
+    <script>
         const reticle = document.getElementById('reticle');
         const ancora = document.getElementById('ancora-pavimento');
         const ologram = document.getElementById('ologram-screen');
-        const testoOlogramma = ologram.querySelector('a-text'); // Prendiamo la scritta nera
+        const testoOlogramma = ologram.querySelector('a-text'); 
         const scene = document.querySelector('a-scene');
         let oggettoPiazzato = false;
 
@@ -41,7 +41,6 @@
             if (reticle) reticle.setAttribute('visible', 'false'); 
             
             oggettoPiazzato = true;
-            // Diciamo a schermo che siamo pronti a ricevere
             testoOlogramma.setAttribute('value', 'IN ASCOLTO RETE...');
         }
 
@@ -50,8 +49,7 @@
             piazzaOggetto(reticle.getAttribute('position'));
         });
 
-        // 1B. TRUCCO PC: Mettiamo l'ancora esattamente al centro (0,0,0) 
-        // così le coordinate del tuo telefono coincideranno perfettamente!
+        // 1B. TRUCCO PC: Mettiamo l'ancora a zero
         window.addEventListener('click', function () {
             piazzaOggetto({x: 0, y: 0, z: 0}); 
         });
@@ -63,20 +61,18 @@
         mqttClient.on('connect', () => {
             console.log("PC Connesso a Internet!");
             if (!oggettoPiazzato) {
-                // Se non hai ancora cliccato, ti avvisa che la rete è OK
-                testoOlogramma.setAttribute('value', 'PC CONNESSO. CLICCA SCHERMO');
+                testoOlogramma.setAttribute('value', 'PC CONNESSO.\nCLICCA LO SCHERMO NERO');
             }
         });
 
-        // QUANDO ARRIVA IL MESSAGGIO DAL TELEFONO...
         mqttClient.on('message', (topic, message) => {
             if (oggettoPiazzato) {
                 const dati = JSON.parse(message.toString());
                 
-                // TEST VISIVO SUPREMO: Scriviamo i numeri ricevuti sul rettangolo verde!
+                // TEST VISIVO SUPREMO
                 testoOlogramma.setAttribute('value', `RICEVO: X ${dati.x.toFixed(2)}`);
                 
-                // Spostiamo l'oggetto
+                // Spostiamo l'oggetto in base alla tua mano
                 ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
             }
         });
