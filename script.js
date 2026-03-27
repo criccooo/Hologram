@@ -1,4 +1,5 @@
-const videoElement = document.getElementById('hidden-video');
+const videoElement = document.getElementById('input_video');
+const startButton = document.getElementById('start_btn');
 const handDot = document.getElementById('hand-dot');
 const ologram = document.getElementById('ologram-screen');
 const playerCamera = document.getElementById('player-camera');
@@ -6,21 +7,21 @@ const debugText = document.getElementById('debug-text');
 
 let isGrabbing = false;
 
+// 1. Inizializzazione AI
 const hands = new Hands({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
 
 hands.setOptions({
     maxNumHands: 1,
-    modelComplexity: 1, // Se va a scatti, possiamo abbassarlo a 0
+    modelComplexity: 1, 
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5
 });
 
-// Funzione che scatta ogni volta che l'IA analizza un frame
+// 2. Logica di mappatura e Pinch
 hands.onResults((results) => {
     
-    // Aggiorniamo il debug a schermo
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         debugText.setAttribute('value', 'MANO TROVATA!');
         handDot.setAttribute('visible', 'true');
@@ -29,62 +30,77 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        const x = (0.5 - indexTip.x) * 2; 
+        // MAPPATURA CORRETTA (X e Y relative alla visuale, non specchiate)
+        const x = (indexTip.x - 0.5) * 2; 
         const y = (0.5 - indexTip.y) * 2;
-        const z = -1;
+        const z = -1; // Distanza della palla rossa dai tuoi occhi
 
         handDot.setAttribute('position', {x, y, z});
 
+        // Calcolo del Pinch
         const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
         
         if (distance < 0.06) {
+            // SEI IN PINCH
             handDot.setAttribute('color', 'yellow');
             debugText.setAttribute('value', 'PRESO!');
-            if (!isGrabbing) {
-                ologram.setAttribute('position', {x: 0, y: 0, z: 0}); 
-                handDot.appendChild(ologram);
-                isGrabbing = true;
-            }
+            
+            // LOGICA DI SPOSTAMENTO SOLIDO
+            const dotWorldPos = new THREE.Vector3();
+            handDot.object3D.getWorldPosition(dotWorldPos);
+            
+            // L'ologramma segue la pallina rossaYELLOW senza staccarsi
+            ologram.setAttribute('position', dotWorldPos);
+            
+            // Facciamo in modo che l'ologramma sia sempre rivolto verso la telecamera
+            const camRot = playerCamera.getAttribute('rotation');
+            ologram.setAttribute('rotation', {x: 0, y: camRot.y, z: 0});
+            
         } else {
+            // NON SEI IN PINCH
             handDot.setAttribute('color', 'red');
-            if (isGrabbing) {
-                const worldPos = new THREE.Vector3();
-                ologram.object3D.getWorldPosition(worldPos);
-                
-                document.querySelector('a-scene').appendChild(ologram);
-                ologram.setAttribute('position', worldPos);
-                
-                isGrabbing = false;
-            }
+            // L'ologramma resta semplicemente fermo dove l'hai lasciato
         }
     } else {
-        // L'IA è viva ma non vede mani
+        // L'IA è attiva ma non vede nessuna mano
         debugText.setAttribute('value', 'CERCO MANO...');
         handDot.setAttribute('visible', 'false');
     }
 });
 
-function startApp() {
-    document.getElementById('start_btn').style.display = 'none';
-    debugText.setAttribute('value', 'AVVIO FOTOCAMERA...');
+// 3. Funzione di Avvio e Schermo Intero
+startButton.addEventListener('click', () => {
+    startButton.style.display = 'none';
     
+    // --- SCHERMO INTERO IMMEDIATO ---
+    // Proviamo i metodi standard e proprietari dei browser
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+    } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+        document.documentElement.mozRequestFullScreen();
+    } else if (document.documentElement.webkitRequestFullscreen) { // Chrome/Safari
+        document.documentElement.webkitRequestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+        document.documentElement.msRequestFullscreen();
+    }
+    
+    // Se è su iOS, serve esplicitamente chiedere il permesso per i sensori
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().catch(console.error);
+        DeviceOrientationEvent.requestPermission()
+            .then(() => debugText.setAttribute('value', 'SENSORI OK'))
+            .catch(console.error);
     }
 
+    // Avviamo la fotocamera posteriore
     const camera = new Camera(videoElement, {
         onFrame: async () => { 
             await hands.send({image: videoElement}); 
         },
         width: 640, height: 480,
-        facingMode: 'environment' // FONDAMENTALE: Usa la camera posteriore!
+        facingMode: 'environment' 
     });
     
     camera.start()
-        .then(() => {
-            debugText.setAttribute('value', 'CAMERA OK. CERCO MANO...');
-        })
-        .catch((err) => {
-            debugText.setAttribute('value', 'ERRORE CAM: ' + err.message);
-        });
-}
+        .then(() => debugText.setAttribute('value', 'CAMERA OK. CERCO MANO...'))
+        .catch((err) => debugText.setAttribute('value', 'ERRORE CAM: ' + err.message));
+});
