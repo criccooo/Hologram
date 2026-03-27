@@ -26,48 +26,57 @@
         <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
-    <script>
+   <script>
         const reticle = document.getElementById('reticle');
         const ancora = document.getElementById('ancora-pavimento');
         const ologram = document.getElementById('ologram-screen');
+        const testoOlogramma = ologram.querySelector('a-text'); // Prendiamo la scritta nera
         const scene = document.querySelector('a-scene');
         let oggettoPiazzato = false;
 
-        // FUNZIONE PER PIAZZARE L'OGGETTO
         function piazzaOggetto(posizione) {
             if (oggettoPiazzato) return;
             ancora.setAttribute('position', posizione);
             ancora.setAttribute('visible', 'true');
-            reticle.setAttribute('visible', 'false'); // Nascondiamo il mirino
+            if (reticle) reticle.setAttribute('visible', 'false'); 
+            
             oggettoPiazzato = true;
-            ologram.querySelector('a-text').setAttribute('value', 'SPOSTAMI COL VISORE');
+            // Diciamo a schermo che siamo pronti a ricevere
+            testoOlogramma.setAttribute('value', 'IN ASCOLTO RETE...');
         }
 
-        // 1A. GESTIONE SLAM (Per il telefono/tablet del Prof)
+        // 1A. SLAM VERO (Per telefono/tablet prof)
         scene.addEventListener('ar-hit-test-select', function () {
             piazzaOggetto(reticle.getAttribute('position'));
         });
 
-        // 1B. TRUCCO PER IL PC (Per testare stasera col mouse)
+        // 1B. TRUCCO PC: Mettiamo l'ancora esattamente al centro (0,0,0) 
+        // così le coordinate del tuo telefono coincideranno perfettamente!
         window.addEventListener('click', function () {
-            // Se clicchi col mouse sul PC, lo piazza a coordinate fisse davanti a te
-            piazzaOggetto({x: 0, y: 1.5, z: -2});
+            piazzaOggetto({x: 0, y: 0, z: 0}); 
         });
 
-        // 2. GESTIONE RETE: Ascoltiamo il Visore via Internet
+        // 2. RETE MQTT
         const mqttClient = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
         const topicSegreto = 'esame_ar_visore_2026_super_segreto'; 
 
         mqttClient.on('connect', () => {
-            console.log("In ascolto del visore...");
-            mqttClient.subscribe(topicSegreto);
+            console.log("PC Connesso a Internet!");
+            if (!oggettoPiazzato) {
+                // Se non hai ancora cliccato, ti avvisa che la rete è OK
+                testoOlogramma.setAttribute('value', 'PC CONNESSO. CLICCA SCHERMO');
+            }
         });
 
-        // Quando il visore manda nuove coordinate...
+        // QUANDO ARRIVA IL MESSAGGIO DAL TELEFONO...
         mqttClient.on('message', (topic, message) => {
             if (oggettoPiazzato) {
                 const dati = JSON.parse(message.toString());
-                // Muoviamo l'ologramma in tempo reale!
+                
+                // TEST VISIVO SUPREMO: Scriviamo i numeri ricevuti sul rettangolo verde!
+                testoOlogramma.setAttribute('value', `RICEVO: X ${dati.x.toFixed(2)}`);
+                
+                // Spostiamo l'oggetto
                 ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
             }
         });
