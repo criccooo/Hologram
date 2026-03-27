@@ -2,33 +2,27 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Visore - Fake SLAM + Fullscreen</title>
+    <title>AR Visore - Controller</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        /* Il video Sorgente è nascosto dietro al 3D */
-        #input_video { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            object-fit: cover; z-index: -1; 
-        }
-        /* Tasto di avvio centrale */
+        #input_video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
         #start_btn {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 20px 40px; font-size: 20px; background: #00FF00; 
             border: none; border-radius: 10px; z-index: 100; font-weight: bold; cursor: pointer;
         }
-        /* Forza lo sfondo nero per A-Frame, così nel visore homemade diventa trasparente */
         .a-canvas { z-index: 1 !important; background-color: #000 !important; }
     </style>
 </head>
 <body>
-    <button id="start_btn">AVVIA ESPERIENZA OLOGRAFO</button>
+    <button id="start_btn">AVVIA VISORE</button>
     <video id="input_video" playsinline autoplay></video>
 
     <a-scene xr-mode-ui="enabled: false">
-        
         <a-entity id="ologram-screen" 
                   geometry="primitive: plane; width: 0.6; height: 0.4" 
                   material="color: #00FF00; emissive: #00FF00; side: double" 
@@ -41,8 +35,11 @@
         <a-camera id="player-camera" position="0 1.6 0" look-controls="enabled: true">
             <a-sphere id="hand-dot" radius="0.02" color="red" visible="false" material="shader: flat"></a-sphere>
         </a-camera>
-
     </a-scene>
+
+    <script src="script.js"></script>
+</body>
+</html>
 
     <script src="script.js"></script>
 </body>
