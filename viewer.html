@@ -55,7 +55,7 @@
         });
 
         // 2. RETE MQTT
-        const mqttClient = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
+        const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
         const topicSegreto = 'esame_ar_visore_2026_super_segreto'; 
 
         mqttClient.on('connect', () => {
