@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AR Viewer - Vista Professore</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+    <style> body { margin: 0; overflow: hidden; font-family: sans-serif; } </style>
+</head>
+<body>
+
+    <a-scene webxr="requiredFeatures: hit-test;" ar-hit-test="target: #ancora-pavimento">
+        
+        <a-entity id="reticle" geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
+                  material="color: #00FF00; shader: flat" rotation="-90 0 0"></a-entity>
+
+        <a-entity id="ancora-pavimento" visible="false">
+            <a-entity id="ologram-screen" 
+                      geometry="primitive: plane; width: 0.6; height: 0.4" 
+                      material="color: #00FF00; emissive: #00FF00; side: double; opacity: 0.8" 
+                      position="0 1.5 -1.5">
+                 <a-text value="IN ATTESA DELLO STUDENTE..." align="center" width="2" position="0 0 0.02" color="black"></a-text>
+            </a-entity>
+        </a-entity>
+
+        <a-camera position="0 1.6 0"></a-camera>
+    </a-scene>
+
+    <script>
+        const reticle = document.getElementById('reticle');
+        const ancora = document.getElementById('ancora-pavimento');
+        const ologram = document.getElementById('ologram-screen');
+        const scene = document.querySelector('a-scene');
+        let oggettoPiazzato = false;
+
+        // 1. GESTIONE SLAM: Il professore tocca lo schermo per piazzare l'ancora
+        scene.addEventListener('ar-hit-test-select', function () {
+            if (oggettoPiazzato) return;
+            
+            ancora.setAttribute('position', reticle.getAttribute('position'));
+            ancora.setAttribute('visible', 'true');
+            reticle.setAttribute('visible', 'false'); // Nascondiamo il mirino
+            
+            oggettoPiazzato = true;
+            ologram.querySelector('a-text').setAttribute('value', 'SPOSTAMI COL VISORE');
+        });
+
+        // 2. GESTIONE RETE: Ascoltiamo il Visore via Internet
+        const mqttClient = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
+        const topicSegreto = 'esame_ar_visore_2026_super_segreto'; 
+
+        mqttClient.on('connect', () => {
+            console.log("In ascolto del visore...");
+            mqttClient.subscribe(topicSegreto);
+        });
+
+        // Quando il visore manda nuove coordinate...
+        mqttClient.on('message', (topic, message) => {
+            if (oggettoPiazzato) {
+                const dati = JSON.parse(message.toString());
+                // Muoviamo l'ologramma in tempo reale!
+                ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
+            }
+        });
+    </script>
+</body>
+</html>
