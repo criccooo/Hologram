@@ -33,16 +33,25 @@
         const scene = document.querySelector('a-scene');
         let oggettoPiazzato = false;
 
-        // 1. GESTIONE SLAM: Il professore tocca lo schermo per piazzare l'ancora
-        scene.addEventListener('ar-hit-test-select', function () {
+        // FUNZIONE PER PIAZZARE L'OGGETTO
+        function piazzaOggetto(posizione) {
             if (oggettoPiazzato) return;
-            
-            ancora.setAttribute('position', reticle.getAttribute('position'));
+            ancora.setAttribute('position', posizione);
             ancora.setAttribute('visible', 'true');
             reticle.setAttribute('visible', 'false'); // Nascondiamo il mirino
-            
             oggettoPiazzato = true;
             ologram.querySelector('a-text').setAttribute('value', 'SPOSTAMI COL VISORE');
+        }
+
+        // 1A. GESTIONE SLAM (Per il telefono/tablet del Prof)
+        scene.addEventListener('ar-hit-test-select', function () {
+            piazzaOggetto(reticle.getAttribute('position'));
+        });
+
+        // 1B. TRUCCO PER IL PC (Per testare stasera col mouse)
+        window.addEventListener('click', function () {
+            // Se clicchi col mouse sul PC, lo piazza a coordinate fisse davanti a te
+            piazzaOggetto({x: 0, y: 1.5, z: -2});
         });
 
         // 2. GESTIONE RETE: Ascoltiamo il Visore via Internet
