@@ -7,10 +7,10 @@ const debugText = document.getElementById('debug-text');
 
 // --- CONNESSIONE SERVER PUBBLICO ---
 const mqttClient = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
-const topicSegreto = 'esame_ar_visore_2026_super_segreto'; // Nome del canale
+const topicSegreto = 'esame_ar_visore_2026_super_segreto'; // DEVE ESSERE IDENTICO SUL PC
 
 mqttClient.on('connect', () => {
-    console.log("Connesso a Internet!");
+    console.log("Telefono connesso a Internet!");
 });
 
 // --- SETUP MEDIAPIPE ---
@@ -19,7 +19,6 @@ hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0
 
 hands.onResults((results) => {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        debugText.setAttribute('value', 'MANO TROVATA!');
         handDot.setAttribute('visible', 'true');
         
         const landmarks = results.multiHandLandmarks[0];
@@ -35,8 +34,8 @@ hands.onResults((results) => {
         const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
         
         if (distance < 0.06) {
+            // SEI IN PINCH
             handDot.setAttribute('color', 'yellow');
-            debugText.setAttribute('value', 'PRESO!');
             
             const dotWorldPos = new THREE.Vector3();
             handDot.object3D.getWorldPosition(dotWorldPos);
@@ -45,14 +44,19 @@ hands.onResults((results) => {
             const camRot = playerCamera.getAttribute('rotation');
             ologram.setAttribute('rotation', {x: 0, y: camRot.y, z: 0});
 
-            // SPEDIAMO LE COORDINATE AL PROFESSORE VIA INTERNET
+            // --- SPEDIAMO LE COORDINATE VIA INTERNET ---
             if (mqttClient.connected) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
                 mqttClient.publish(topicSegreto, JSON.stringify(dati));
+                debugText.setAttribute('value', 'DATI INVIATI!'); // Feedback Positivo
+            } else {
+                debugText.setAttribute('value', 'ERRORE RETE TELEFONO'); // Feedback Negativo
             }
             
         } else {
+            // MANO APERTA
             handDot.setAttribute('color', 'red');
+            debugText.setAttribute('value', 'MANO TROVATA!');
         }
     } else {
         debugText.setAttribute('value', 'CERCO MANO...');
@@ -79,4 +83,4 @@ startButton.addEventListener('click', () => {
     camera.start()
         .then(() => debugText.setAttribute('value', 'CAMERA OK. CERCO MANO...'))
         .catch((err) => debugText.setAttribute('value', 'ERRORE CAM: ' + err.message));
-});;
+});
