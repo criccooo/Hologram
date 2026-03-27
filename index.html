@@ -2,26 +2,32 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Visore - Fake SLAM</title>
+    <title>AR Visore - Fake SLAM + Debug</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; }
-        /* Video invisibile per l'IA */
-        #hidden-video { position: fixed; opacity: 0; width: 1px; height: 1px; }
+        /* Il video ora è a grandezza naturale ma nascosto DIETRO il canvas 3D */
+        #hidden-video { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; z-index: -1; 
+        }
         #start_btn {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 20px 40px; font-size: 18px; background: #00FF00; 
             border: none; border-radius: 10px; z-index: 100; font-weight: bold;
         }
+        /* Il canvas di A-Frame deve stare sopra il video e avere lo sfondo nero per il visore */
+        .a-canvas { z-index: 1 !important; background-color: #000 !important; }
     </style>
 </head>
 <body>
-    <button id="start_btn" onclick="startApp()">AVVIA OLOGRAFO</button>
+    <button id="start_btn" onclick="startApp()">AVVIA ESPERIENZA</button>
+    
     <video id="hidden-video" playsinline autoplay></video>
 
-    <a-scene background="color: black" xr-mode-ui="enabled: false">
+    <a-scene xr-mode-ui="enabled: false">
         
         <a-entity id="ologram-screen" 
                   geometry="primitive: plane; width: 0.6; height: 0.4" 
@@ -30,11 +36,17 @@
              <a-text value="AFFERRAMI" align="center" width="2" position="0 0 0.02" color="black"></a-text>
         </a-entity>
 
+        <a-text id="debug-text" value="IN ATTESA..." color="red" position="0 2 -2" align="center" width="3"></a-text>
+
         <a-camera id="player-camera" position="0 1.6 0" look-controls="enabled: true">
             <a-sphere id="hand-dot" radius="0.02" color="red" visible="false" material="shader: flat"></a-sphere>
         </a-camera>
 
     </a-scene>
+
+    <script src="script.js"></script>
+</body>
+</html>
 
     <script src="script.js"></script>
 </body>
