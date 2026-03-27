@@ -1,10 +1,9 @@
-// ==========================================
-// 1. CONFIGURAZIONE AI E MANI
-// ==========================================
+const videoElement = document.getElementById('hidden-video');
 const handDot = document.getElementById('hand-dot');
 const ologram = document.getElementById('ologram-screen');
-const statusText = document.getElementById('status-text');
-const extractionCanvas = document.getElementById('extraction-canvas');
+const playerCamera = document.getElementById('player-camera');
+
+let isGrabbing = false;
 
 const hands = new Hands({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -17,7 +16,6 @@ hands.setOptions({
     minTrackingConfidence: 0.5
 });
 
-// Cosa succede quando MediaPipe trova la mano nei frame di WebXR
 hands.onResults((results) => {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         handDot.setAttribute('visible', 'true');
@@ -26,75 +24,56 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // Mappiamo le coordinate 2D nello spazio 3D davanti alla telecamera
-        const x = (indexTip.x - 0.5) * 1.5;
-        const y = -(indexTip.y - 0.5) * 1.5;
-        const z = -0.5; // Distanza fissa davanti agli occhi
+        // Mappatura X e Y relative alla visuale dello schermo
+        const x = (0.5 - indexTip.x) * 2; 
+        const y = (0.5 - indexTip.y) * 2;
+        const z = -1; // Pallina rossa fissa a 1 metro dai tuoi occhi
 
         handDot.setAttribute('position', {x, y, z});
 
-        // Logica di GRAB (Pizzico) per spostare l'ologramma
+        // Logica Pizzico
         const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
         
-        if (distance < 0.05 && ologram.getAttribute('visible') === true) {
+        if (distance < 0.06) {
             handDot.setAttribute('color', 'yellow');
-            statusText.setAttribute('visible', 'true');
-            // Se pizzichi, l'ologramma segue la tua mano!
-            ologram.setAttribute('position', handDot.object3D.getWorldPosition(new THREE.Vector3()));
+            if (!isGrabbing) {
+                // Se inizio ad afferrare, faccio diventare l'ologramma "figlio" della palla rossa
+                // così la segue ovunque.
+                ologram.setAttribute('position', {x: 0, y: 0, z: 0}); // Azzera posizione locale
+                handDot.appendChild(ologram);
+                isGrabbing = true;
+            }
         } else {
             handDot.setAttribute('color', 'red');
-            statusText.setAttribute('visible', 'false');
+            if (isGrabbing) {
+                // Se rilascio, "stacco" l'ologramma dalla mano e lo rimetto nel mondo
+                const worldPos = new THREE.Vector3();
+                ologram.object3D.getWorldPosition(worldPos);
+                
+                // Rimetto l'ologramma nella scena principale nella sua nuova posizione
+                document.querySelector('a-scene').appendChild(ologram);
+                ologram.setAttribute('position', worldPos);
+                
+                isGrabbing = false;
+            }
         }
     } else {
         handDot.setAttribute('visible', 'false');
     }
 });
 
-// ==========================================
-// 2. LO SLAM: POSIZIONAMENTO SUL PAVIMENTO
-// ==========================================
-let objectPlaced = false;
-
-document.querySelector('a-scene').addEventListener('ar-hit-test-select', function () {
-    if (objectPlaced) return; 
-
-    const reticle = document.getElementById('reticle');
-    const position = reticle.getAttribute('position');
+function startApp() {
+    document.getElementById('start_btn').style.display = 'none';
     
-    // Piazza lo schermo 45cm sopra il pavimento (altezza tibia)
-    ologram.setAttribute('position', { x: position.x, y: position.y + 0.45, z: position.z });
-    
-    // Fallo ruotare verso di te
-    const cameraYRotation = document.querySelector('a-camera').getAttribute('rotation').y;
-    ologram.setAttribute('rotation', { x: 0, y: cameraYRotation, z: 0 });
-
-    ologram.setAttribute('visible', 'true');
-    reticle.setAttribute('visible', 'false');
-    this.removeAttribute('ar-hit-test'); // Ferma lo SLAM per risparmiare batteria
-    
-    objectPlaced = true;
-});
-
-// ==========================================
-// 3. IL PONTE WEBXR (L'approccio GitHub sperimentale)
-// ==========================================
-AFRAME.registerComponent('xr-camera-bridge', {
-    tick: function () {
-        const sceneEl = this.el;
-        const renderer = sceneEl.renderer;
-        
-        // Se non siamo in AR (WebXR Session attiva), non fare nulla
-        if (!sceneEl.xrSession) return;
-        
-        // Questo è il trucco sperimentale: "rubiamo" il frame WebGL dalla sessione AR
-        // e lo mandiamo a MediaPipe per fargli cercare le mani.
-        // Essendo un'API in incubazione, usiamo un try/catch per non far crashare tutto se lagga.
-        try {
-            const canvas = renderer.domElement;
-            // Mandiamo il canvas 3D misto alla realtà a MediaPipe
-            hands.send({image: canvas});
-        } catch (e) {
-            console.warn("Estrazione frame in corso...");
-        }
+    // Su iOS serve esplicitamente chiedere il permesso per il giroscopio a volte,
+    // su Android i look-controls partono da soli.
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().catch(console.error);
     }
-});
+
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await hands.send({image: videoElement}); },
+        width: 640, height: 480
+    });
+    camera.start();
+}
