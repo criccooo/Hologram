@@ -2,45 +2,82 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Visore - Controller</title>
+    <title>AR Viewer - Vista Professore</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        #input_video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
-        #start_btn {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            padding: 20px 40px; font-size: 20px; background: #00FF00; 
-            border: none; border-radius: 10px; z-index: 100; font-weight: bold; cursor: pointer;
-        }
-        .a-canvas { z-index: 1 !important; background-color: #000 !important; }
-    </style>
+    <style> body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #222; } </style>
 </head>
 <body>
-    <button id="start_btn">AVVIA VISORE</button>
-    <video id="input_video" playsinline autoplay></video>
 
-    <a-scene xr-mode-ui="enabled: false">
-        <a-entity id="ologram-screen" 
-                  geometry="primitive: plane; width: 0.6; height: 0.4" 
-                  material="color: #00FF00; emissive: #00FF00; side: double" 
-                  position="0 1.5 -1.5">
-             <a-text value="AFFERRAMI" align="center" width="2" position="0 0 0.02" color="black"></a-text>
+    <a-scene webxr="requiredFeatures: hit-test;" ar-hit-test="target: #ancora-pavimento">
+        <a-entity id="reticle" geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" 
+                  material="color: #00FF00; shader: flat" rotation="-90 0 0"></a-entity>
+
+        <a-entity id="ancora-pavimento" visible="false">
+            <a-entity id="ologram-screen" 
+                      geometry="primitive: plane; width: 0.6; height: 0.4" 
+                      material="color: #00FF00; emissive: #00FF00; side: double; opacity: 0.8" 
+                      position="0 1.5 -1.5">
+                 <a-text value="INIZIALIZZAZIONE..." align="center" width="2" position="0 0 0.02" color="black"></a-text>
+            </a-entity>
         </a-entity>
 
-        <a-text id="debug-text" value="IN ATTESA..." color="red" position="0 2 -2" align="center" width="3"></a-text>
-
-        <a-camera id="player-camera" position="0 1.6 0" look-controls="enabled: true">
-            <a-sphere id="hand-dot" radius="0.02" color="red" visible="false" material="shader: flat"></a-sphere>
-        </a-camera>
+        <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
-    <script src="script.js"></script>
-</body>
-</html>
+    <script>
+        const reticle = document.getElementById('reticle');
+        const ancora = document.getElementById('ancora-pavimento');
+        const ologram = document.getElementById('ologram-screen');
+        const testoOlogramma = ologram.querySelector('a-text'); 
+        const scene = document.querySelector('a-scene');
+        let oggettoPiazzato = false;
 
-    <script src="script.js"></script>
+        function piazzaOggetto(posizione) {
+            if (oggettoPiazzato) return;
+            ancora.setAttribute('position', posizione);
+            ancora.setAttribute('visible', 'true');
+            if (reticle) reticle.setAttribute('visible', 'false'); 
+            
+            oggettoPiazzato = true;
+            testoOlogramma.setAttribute('value', 'IN ASCOLTO RETE...');
+            console.log("Oggetto piazzato! Pronto a muoversi.");
+        }
+
+        // 1A. SLAM VERO (Per telefono/tablet prof)
+        scene.addEventListener('ar-hit-test-select', function () {
+            piazzaOggetto(reticle.getAttribute('position'));
+        });
+
+        // 1B. TRUCCO PC (Per testare stasera col mouse)
+        window.addEventListener('click', function () {
+            piazzaOggetto({x: 0, y: 0, z: 0}); 
+        });
+
+        // 2. RETE MQTT (IL POSTINO)
+        const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        const topicSegreto = 'esame_ar_visore_2026_super_segreto'; 
+
+        mqttClient.on('connect', () => {
+            console.log("=== PC CONNESSO AL SERVER EMQX! ===");
+            if (!oggettoPiazzato) {
+                testoOlogramma.setAttribute('value', 'PC CONNESSO.\nCLICCA LO SCHERMO NERO');
+            }
+        });
+
+        // QUANDO ARRIVA IL MESSAGGIO DAL TELEFONO...
+        mqttClient.on('message', (topic, message) => {
+            console.log("BINGO! MESSAGGIO RICEVUTO:", message.toString()); 
+            if (oggettoPiazzato) {
+                try {
+                    const dati = JSON.parse(message.toString());
+                    testoOlogramma.setAttribute('value', `RICEVO: X ${dati.x.toFixed(2)}`);
+                    ologram.setAttribute('position', { x: dati.x, y: dati.y, z: dati.z });
+                } catch (e) {
+                    console.error("Errore di lettura coordinate:", e);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
