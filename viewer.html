@@ -32,14 +32,12 @@
     </a-scene>
 
     <script>
-        // --- RIFERIMENTI AGLI OGGETTI ---
         const ancora = document.getElementById('ancora-pavimento');
         const ologram = document.getElementById('ologram-screen');
         const testoInfo = document.getElementById('testo-info');
         const scene = document.querySelector('a-scene');
         let oggettoPiazzato = false;
 
-        // --- FUNZIONE PER PIAZZARE L'OGGETTO ---
         function piazzaOggetto(posizione) {
             if (oggettoPiazzato) return;
             
@@ -51,19 +49,16 @@
             console.log("SISTEMA: Oggetto piazzato in posizione:", posizione);
         }
 
-        // 1. GESTIONE PIAZZAMENTO (TOUCH SU TELEFONO O CLICK SU PC)
         scene.addEventListener('ar-hit-test-select', (e) => {
             const reticlePos = document.getElementById('reticle').getAttribute('position');
             piazzaOggetto(reticlePos);
         });
 
         window.addEventListener('click', () => {
-            // Trucco per il PC: piazza l'oggetto al centro se clicchi lo schermo
             piazzaOggetto({x: 0, y: 1, z: -2});
         });
 
-
-        // 2. CONNESSIONE ALLA RETE (MQTT)
+        // --- RETE MQTT ---
         const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
         const topicSegreto = 'esame_ar_visore_2026_super_segreto';
         const mqttClient = mqtt.connect(brokerUrl);
@@ -71,44 +66,31 @@
         mqttClient.on('connect', () => {
             console.log("RETE: Connesso al server EMQX!");
             
-            // --- QUESTA È LA PARTE FONDAMENTALE CHE MANCAVA ---
             mqttClient.subscribe(topicSegreto, (err) => {
                 if (!err) {
                     console.log("RETE: Sintonizzato sul canale giusto. Pronto a ricevere!");
                     testoInfo.setAttribute('value', 'CONNESSO.\nCLICCA LO SCHERMO');
-                } else {
-                    console.error("RETE: Errore di sintonizzazione:", err);
                 }
             });
         });
 
-        // 3. RICEZIONE DEI DATI DAL TELEFONO
         mqttClient.on('message', (topic, message) => {
-            // Se leggiamo questo in console, la comunicazione sta funzionando!
-            console.log("BINGO! Messaggio arrivato:", message.toString());
-
             if (oggettoPiazzato) {
                 try {
                     const dati = JSON.parse(message.toString());
                     
-                    // Muoviamo l'ologramma in base ai dati del telefono
-                    // Usiamo dati.x * -1 per correggere l'effetto specchio se necessario
-                    ologram.setAttribute('position', { 
-                        x: dati.x, 
-                        y: dati.y, 
-                        z: dati.z 
-                    });
+                    // --- ANIMAZIONE FLUIDA (ANTI-LAG) ---
+                    // Invece di teletrasportare l'oggetto a scatti, lo facciamo "scivolare" dolcemente 
+                    // verso la nuova posizione in 75 millisecondi.
+                    ologram.setAttribute('animation', `property: position; to: ${dati.x} ${dati.y} ${dati.z}; dur: 75; easing: linear`);
 
                     testoInfo.setAttribute('value', `RICEZIONE OK\nX: ${dati.x.toFixed(2)}`);
 
                 } catch (e) {
                     console.error("ERRORE: Dati ricevuti non validi", e);
                 }
-            } else {
-                console.warn("RETE: Ricevo dati, ma non hai ancora cliccato lo schermo per piazzare l'oggetto!");
             }
         });
-
     </script>
 </body>
 </html>
