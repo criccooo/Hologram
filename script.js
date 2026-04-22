@@ -27,8 +27,7 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // 1. CORREZIONE EFFETTO SPECCHIO E ALTEZZA
-        // X non è più invertita, Y è alzata ad altezza occhi
+        // CORREZIONE EFFETTO SPECCHIO E ALTEZZA (ad altezza occhi)
         const x = (indexTip.x - 0.5) * 2; 
         const y = (0.5 - indexTip.y) * 2 + 1.5; 
         const z = -1;
@@ -48,7 +47,7 @@ hands.onResults((results) => {
             const camRot = playerCamera.getAttribute('rotation');
             ologram.setAttribute('rotation', {x: 0, y: camRot.y, z: 0});
 
-            // 2. INVIO DATI OTTIMIZZATO (Ogni 50ms)
+            // INVIO DATI OTTIMIZZATO (Ogni 50ms)
             const ora = Date.now();
             if (mqttClient.connected && (ora - ultimoInvio > 50)) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
@@ -75,7 +74,7 @@ startButton.addEventListener('click', () => {
     if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
     else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
     
-    // Telecamera a bassa risoluzione per massima fluidità sul telefono
+    // Telecamera fluida
     const camera = new Camera(videoElement, {
         onFrame: async () => { await hands.send({image: videoElement}); },
         width: 320, height: 240, facingMode: 'environment' 
