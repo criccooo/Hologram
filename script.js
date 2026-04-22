@@ -15,10 +15,8 @@ mqttClient.on('connect', () => {
 
 // --- SETUP MEDIAPIPE (OTTIMIZZATO PER EVITARE LAG) ---
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-// modelComplexity: 0 rende l'IA molto più leggera e veloce sul telefono
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-// Variabile per il "limite di velocità" di Internet
 let ultimoInvio = 0; 
 
 hands.onResults((results) => {
@@ -29,9 +27,9 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // 1. CORREZIONE ALTEZZA: Aggiungiamo + 1.5 per alzarla ad altezza occhi!
-        // Abbiamo anche invertito la X (0.5 - indexTip.x) se la mano ti faceva effetto specchio
-        const x = (0.5 - indexTip.x) * 2; 
+        // 1. CORREZIONE EFFETTO SPECCHIO E ALTEZZA
+        // X non è più invertita, Y è alzata ad altezza occhi
+        const x = (indexTip.x - 0.5) * 2; 
         const y = (0.5 - indexTip.y) * 2 + 1.5; 
         const z = -1;
 
@@ -50,13 +48,13 @@ hands.onResults((results) => {
             const camRot = playerCamera.getAttribute('rotation');
             ologram.setAttribute('rotation', {x: 0, y: camRot.y, z: 0});
 
-            // 2. CORREZIONE LAG RETE: Inviamo i dati solo ogni 50 millisecondi
+            // 2. INVIO DATI OTTIMIZZATO (Ogni 50ms)
             const ora = Date.now();
             if (mqttClient.connected && (ora - ultimoInvio > 50)) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
                 mqttClient.publish(topicSegreto, JSON.stringify(dati));
                 if (debugText) debugText.setAttribute('value', 'DATI INVIATI IN TEMPO REALE!');
-                ultimoInvio = ora; // Aggiorna il timer
+                ultimoInvio = ora;
             }
             
         } else {
@@ -77,7 +75,7 @@ startButton.addEventListener('click', () => {
     if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
     else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
     
-    // 3. CORREZIONE LAG FOTOCAMERA: Risoluzione 320x240 (molto più fluida da calcolare)
+    // Telecamera a bassa risoluzione per massima fluidità sul telefono
     const camera = new Camera(videoElement, {
         onFrame: async () => { await hands.send({image: videoElement}); },
         width: 320, height: 240, facingMode: 'environment' 
