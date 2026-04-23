@@ -1,5 +1,5 @@
 const startButton = document.getElementById('start_btn');
-const handDot = document.getElementById('hand-dot');
+const htmlHandDot = document.getElementById('html-hand-dot');
 const ologram = document.getElementById('ologram-screen');
 const debugText = document.getElementById('debug-text');
 const marker = document.getElementById('hiro-marker');
@@ -12,24 +12,30 @@ mqttClient.on('connect', () => {
     console.log("Connesso al broker MQTT!");
 });
 
-// --- INIZIALIZZAZIONE MEDIAPIPE ---
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
 let ultimoInvio = 0; 
 let videoSorgente = null;
 
+// Variabili per il trascinamento morbido (Relative Dragging)
+let isDragging = false;
+let startHandX = 0;
+let startHandY = 0;
+let startObjX = 0;
+let startObjZ = 0;
+
 hands.onResults((results) => {
     if (!videoSorgente) return;
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        handDot.setAttribute('visible', 'true');
+        htmlHandDot.style.display = 'block';
         
         const landmarks = results.multiHandLandmarks[0];
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // --- 1. IL PALLINO SULLO SCHERMO (HUD) ---
+        // 1. POSIZIONAMENTO 2D ASSOLUTO (PERFETTO PER S23)
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         const vidW = videoSorgente.videoWidth;
@@ -44,51 +50,67 @@ hands.onResults((results) => {
         const indexPixelX = (indexTip.x * renderedW) - offsetX;
         const indexPixelY = (indexTip.y * renderedH) - offsetY;
 
+        // Muove il pallino HTML in 2D
+        htmlHandDot.style.left = `${indexPixelX}px`;
+        htmlHandDot.style.top = `${indexPixelY}px`;
+
+        // Coordinate normalizzate per il calcolo dello scarto
         const ndcX = (indexPixelX / screenW) * 2 - 1;
         const ndcY = -(indexPixelY / screenH) * 2 + 1;
 
-        handDot.setAttribute('position', `${ndcX * 1.8} ${ndcY * 1.8} -2`);
-
-        // --- 2. IL PINCH (Calcolato con i dati puri dell'IA, infallibile) ---
-        // MediaPipe fornisce valori da 0.0 a 1.0. 
-        // Se la distanza tra le dita è minore di 0.05 (5%), è un pinch!
+        // 2. LOGICA DEL PINCH (Distanza relativa dell'IA)
         const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
         const isPinching = pinchDist < 0.05;
 
         if (isPinching) {
-            handDot.setAttribute('color', 'yellow');
+            htmlHandDot.style.backgroundColor = 'yellow';
             
-            // --- 3. SPOSTAMENTO A "SCACCHIERA" SUL MARKER ---
             if (marker.object3D.visible) {
-                // Invece di teletrasportarlo in 3D, mappiamo le coordinate dello schermo 
-                // direttamente sulla superficie piatta del marker sul tavolo.
-                // Moltiplichiamo per 2 per dare un raggio d'azione di un paio di metri virtuali.
-                const posX = ndcX * 2; 
-                const posZ = -ndcY * 2; // Invertiamo la Y per farla diventare profondità
-                
-                // Mantiene l'altezza fissa (0.5), così non sprofonda nel tavolo o vola via
-                ologram.setAttribute('position', `${posX} 0.5 ${posZ}`);
+                if (!isDragging) {
+                    // --- INIZIO TRASCINAMENTO ---
+                    // Registriamo dove si trova la mano e dove si trova l'oggetto in questo istante
+                    isDragging = true;
+                    startHandX = ndcX;
+                    startHandY = ndcY;
+                    
+                    const objPos = ologram.getAttribute('position');
+                    startObjX = objPos.x;
+                    startObjZ = objPos.z;
+                } else {
+                    // --- DURANTE IL TRASCINAMENTO ---
+                    // Calcoliamo SOLO la differenza (delta) di quanto si è mossa la mano
+                    const deltaX = (ndcX - startHandX) * 2; // Moltiplicatore di velocità
+                    const deltaZ = -(ndcY - startHandY) * 2;
+                    
+                    const newPosX = startObjX + deltaX;
+                    const newPosZ = startObjZ + deltaZ;
+                    
+                    // Applichiamo la nuova posizione mantenendo l'altezza a 0.5
+                    ologram.setAttribute('position', `${newPosX} 0.5 ${newPosZ}`);
 
-                // Inviamo le coordinate piatte al PC
-                const ora = Date.now();
-                if (mqttClient.connected && (ora - ultimoInvio > 50)) {
-                    const dati = { x: posX, y: 0.5, z: posZ };
-                    mqttClient.publish(topicSegreto, JSON.stringify(dati));
-                    if (debugText) debugText.innerText = 'OGGETTO IN MOVIMENTO!';
-                    ultimoInvio = ora;
+                    // Invio rete
+                    const ora = Date.now();
+                    if (mqttClient.connected && (ora - ultimoInvio > 50)) {
+                        const dati = { x: newPosX, y: 0.5, z: newPosZ };
+                        mqttClient.publish(topicSegreto, JSON.stringify(dati));
+                        if (debugText) debugText.innerText = 'TRASCINAMENTO IN CORSO...';
+                        ultimoInvio = ora;
+                    }
                 }
             }
         } else {
-            handDot.setAttribute('color', 'red');
+            htmlHandDot.style.backgroundColor = 'red';
+            isDragging = false; // Rilasciamo l'oggetto
             if (debugText) debugText.innerText = marker.object3D.visible ? 'MANO APERTA' : 'INQUADRA IL MARKER HIRO';
         }
     } else {
         if (debugText) debugText.innerText = 'CERCO MANO...';
-        handDot.setAttribute('visible', 'false');
+        htmlHandDot.style.display = 'none';
+        isDragging = false;
     }
 });
 
-// --- AVVIO E CONDIVISIONE DELLA FOTOCAMERA ---
+// --- AVVIO SISTEMI ---
 startButton.addEventListener('click', () => {
     startButton.style.display = 'none';
     if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
