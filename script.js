@@ -27,9 +27,8 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // --- 1. MATEMATICA PERFETTA (UNPROJECT) ---
-        // Usiamo un raggio laser 3D per allineare perfettamente il dito allo schermo
-        const ndcX = ((1 - indexTip.x) * 2) - 1; // Invertito per effetto specchio
+        // --- TRACKING DRITTO (Asse X non invertito) ---
+        const ndcX = (indexTip.x * 2) - 1; 
         const ndcY = -(indexTip.y * 2) + 1;
 
         const treCam = playerCamera.getObject3D('camera');
@@ -42,39 +41,34 @@ hands.onResults((results) => {
 
             vec.sub(camWorldPos).normalize();
             
-            // Posizioniamo il pallino a 1.5 metri di profondità esatti
             const targetPos = new THREE.Vector3().copy(camWorldPos).add(vec.multiplyScalar(1.5));
             handDot.setAttribute('position', targetPos);
         }
 
+        // Calcolo millimetrico della distanza tra indice e pollice
         const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
         
-        if (distance < 0.06) {
-            // SEI IN PINCH (Stai afferrando l'oggetto)
+        // --- PINCH ESTREMAMENTE SEVERO (Solo tocco effettivo) ---
+        if (distance < 0.03) {
             handDot.setAttribute('color', 'yellow');
             
             const dotWorldPos = new THREE.Vector3();
             handDot.object3D.getWorldPosition(dotWorldPos);
             
-            // Spostiamo l'oggetto esattamente dove si trova il pallino
             ologram.setAttribute('position', dotWorldPos);
             
-            // Fai ruotare l'oggetto verso la telecamera
             const camRot = playerCamera.getAttribute('rotation');
             ologram.setAttribute('rotation', {x: 0, y: camRot.y, z: 0});
 
-            // INVIO DATI AL PC
             const ora = Date.now();
             if (mqttClient.connected && (ora - ultimoInvio > 50)) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
                 mqttClient.publish(topicSegreto, JSON.stringify(dati));
-                if (debugText) debugText.innerText = 'SPOSTAMENTO IN CORSO...';
+                if (debugText) debugText.innerText = 'PRESO!';
                 ultimoInvio = ora;
             }
             
         } else {
-            // MANO APERTA (Non stai afferrando)
-            // L'oggetto rimane dove l'hai lasciato!
             handDot.setAttribute('color', 'red');
             if (debugText) debugText.innerText = 'MANO PRONTA';
         }
@@ -84,18 +78,17 @@ hands.onResults((results) => {
     }
 });
 
-// --- AVVIO, GIROSCOPIO E FULLSCREEN ---
+// --- AVVIO E SBLOCCO SENSORI ---
 startButton.addEventListener('click', () => {
     
-    // --- 2. SBLOCCO GIROSCOPIO (Risolve l'effetto "incollato") ---
-    // Sui telefoni moderni dobbiamo chiedere il permesso per i sensori
+    // Richiesta permessi iOS/Android per il Giroscopio (Evita l'effetto incollato)
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission()
             .then(permissionState => {
                 if (permissionState === 'granted') {
-                    console.log("Permesso Sensori: ACCORDATO!");
+                    console.log("Sensori Sbloccati!");
                 } else {
-                    alert("Devi accettare l'uso dei sensori per far funzionare la Realtà Aumentata!");
+                    alert("Attenzione: senza i sensori l'oggetto rimarrà incollato allo schermo!");
                 }
             })
             .catch(console.error);
@@ -112,6 +105,6 @@ startButton.addEventListener('click', () => {
     });
     
     camera.start()
-        .then(() => { if (debugText) debugText.innerText = 'SISTEMA OPERATIVO OK.'; })
-        .catch((err) => { if (debugText) debugText.innerText = 'ERRORE CAM: ' + err.message; });
+        .then(() => { if (debugText) debugText.innerText = 'SISTEMA PRONTO.'; })
+        .catch((err) => { if (debugText) debugText.innerText = 'ERRORE: ' + err.message; });
 });
