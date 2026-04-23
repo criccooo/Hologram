@@ -11,10 +11,10 @@
     
     <style>
         body { margin: 0; overflow: hidden; background-color: black; }
-        #start_btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; font-size: 20px; z-index: 10; }
+        #start_btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; font-size: 20px; z-index: 10; cursor: pointer;}
         #debug-text { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; z-index: 10; font-family: sans-serif; font-weight: bold; }
         
-        /* TRUCCO PER LA VERA AR: Scena 3D trasparente, video sotto */
+        /* Scena 3D trasparente, video sotto */
         a-scene {
             position: absolute;
             top: 0;
@@ -30,9 +30,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Fa riempire tutto lo schermo al video */
+            object-fit: cover;
             z-index: 0;
-            /* transform: scaleX(-1); Scommenta questa riga se usi la cam frontale e vuoi l'effetto specchio */
         }
     </style>
 </head>
@@ -49,7 +48,7 @@
             <a-asset-item id="modelloEsame" src="https://raw.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf"></a-asset-item>
         </a-assets>
 
-        <a-camera id="player-camera" position="0 1.6 0"></a-camera>
+        <a-camera id="player-camera" position="0 1.6 0" look-controls></a-camera>
         
         <a-entity id="hand-dot" geometry="primitive: sphere; radius: 0.02" material="color: red" visible="false"></a-entity>
         
