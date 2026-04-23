@@ -7,7 +7,6 @@
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -16,15 +15,18 @@
         body { margin: 0; overflow: hidden; background-color: black; }
         #start_btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; font-size: 20px; z-index: 10; cursor: pointer; font-family: sans-serif;}
         #debug-text { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; z-index: 10; font-family: sans-serif; font-weight: bold; border-radius: 5px; }
+        
+        /* IL NUOVO PALLINO 2D SUPER PRECISO */
+        #html-hand-dot { position: absolute; width: 24px; height: 24px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); z-index: 999; display: none; pointer-events: none; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);}
     </style>
 </head>
 <body>
     
     <div id="debug-text">In attesa...</div>
+    <div id="html-hand-dot"></div>
     <button id="start_btn">AVVIA VISORE</button>
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
-        
         <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
             <a-entity id="ologram-screen" 
                       gltf-model="https://raw.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf" 
@@ -32,11 +34,7 @@
                       position="0 0.5 0">
             </a-entity>
         </a-marker>
-
         <a-entity camera id="player-camera"></a-entity>
-        
-        <a-entity id="hand-dot" geometry="primitive: sphere; radius: 0.02" material="color: red" visible="false"></a-entity>
-        
     </a-scene>
 
     <script src="script.js"></script>
