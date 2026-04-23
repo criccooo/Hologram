@@ -1,7 +1,6 @@
 const startButton = document.getElementById('start_btn');
 const handDot = document.getElementById('hand-dot');
 const ologram = document.getElementById('ologram-screen');
-const playerCamera = document.getElementById('player-camera');
 const debugText = document.getElementById('debug-text');
 const marker = document.getElementById('hiro-marker');
 
@@ -30,76 +29,67 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // --- MATEMATICA: Correzione Aspect Ratio Video vs Schermo ---
+        // --- MATEMATICA DEL RITAGLIO (S23 FIX) ---
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         const vidW = videoSorgente.videoWidth;
         const vidH = videoSorgente.videoHeight;
-        
-        const screenRatio = screenW / screenH;
-        const vidRatio = vidW / vidH;
-        
-        let scale = 1, xOffset = 0, yOffset = 0;
-        
-        if (screenRatio > vidRatio) {
-            scale = screenW / vidW;
-            yOffset = (vidH * scale - screenH) / 2;
-        } else {
-            scale = screenH / vidH;
-            xOffset = (vidW * scale - screenW) / 2;
-        }
-        
-        // Trasformazione in pixel reali dello schermo
-        const indexPixelX = indexTip.x * vidW * scale - xOffset;
-        const indexPixelY = indexTip.y * vidH * scale - yOffset;
-        const thumbPixelX = thumbTip.x * vidW * scale - xOffset;
-        const thumbPixelY = thumbTip.y * vidH * scale - yOffset;
 
-        // Coordinate normalizzate per A-Frame (-1 a 1)
+        // Calcoliamo quanto il video è stato scalato da AR.js per coprire l'intero schermo
+        const scale = Math.max(screenW / vidW, screenH / vidH);
+        
+        // Dimensioni reali del video renderizzato (spesso più grandi dello schermo stesso)
+        const renderedW = vidW * scale;
+        const renderedH = vidH * scale;
+
+        // Calcoliamo quanti pixel sono stati "tagliati" ai bordi (Crop)
+        const offsetX = (renderedW - screenW) / 2;
+        const offsetY = (renderedH - screenH) / 2;
+
+        // Mappiamo le coordinate IA sui pixel esatti del display del tuo telefono
+        const indexPixelX = (indexTip.x * renderedW) - offsetX;
+        const indexPixelY = (indexTip.y * renderedH) - offsetY;
+        const thumbPixelX = (thumbTip.x * renderedW) - offsetX;
+        const thumbPixelY = (thumbTip.y * renderedH) - offsetY;
+
+        // Trasformiamo in coordinate normalizzate per il motore 3D (-1 a +1)
         const ndcX = (indexPixelX / screenW) * 2 - 1;
         const ndcY = -(indexPixelY / screenH) * 2 + 1;
 
-        const treCam = playerCamera.getObject3D('camera');
-        if (treCam) {
-            const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
-            vec.unproject(treCam);
-            const camWorldPos = new THREE.Vector3();
-            treCam.getWorldPosition(camWorldPos);
-            vec.sub(camWorldPos).normalize();
-            
-            // Proiettiamo il pallino a 1.5 metri di distanza dallo schermo
-            const targetPos = new THREE.Vector3().copy(camWorldPos).add(vec.multiplyScalar(1.5));
-            handDot.setAttribute('position', targetPos);
-        }
+        // Posizioniamo il pallino sull'HUD della telecamera.
+        // Fattore 1.8 regola l'apertura del FOV su schermi 19.5:9
+        handDot.setAttribute('position', `${ndcX * 1.8} ${ndcY * 1.8} -2`);
 
-        // --- GESTIONE PINCH MILLIMETRICO ---
+        // --- CALIBRAZIONE PINCH IN PIXEL REALI ---
+        // Sul display ad alta densità del S23, misuriamo i pixel fisici di distanza tra le dita
         const pinchDistance = Math.hypot(indexPixelX - thumbPixelX, indexPixelY - thumbPixelY);
         
-        if (pinchDistance < 35) {
+        // 60 pixel di distanza sul display del telefono equivale a dita chiuse
+        if (pinchDistance < 60) {
             handDot.setAttribute('color', 'yellow');
             
+            // Otteniamo la posizione 3D globale del pallino giallo
             const dotWorldPos = new THREE.Vector3();
             handDot.object3D.getWorldPosition(dotWorldPos);
             
-            // TRASLAZIONE NELLO SPAZIO:
-            // Se inquadriamo il marker, calcoliamo la posizione della mano relativa al marker
+            // Se il marker è visibile, calcoliamo la posizione dell'oggetto rispetto al marker
             if (marker.object3D.visible) {
                 marker.object3D.worldToLocal(dotWorldPos);
                 ologram.setAttribute('position', dotWorldPos);
             }
 
-            // Invio dati al PC del professore (Max 20 volte al secondo per non intasare la rete)
+            // Trasmissione rete
             const ora = Date.now();
             if (mqttClient.connected && (ora - ultimoInvio > 50)) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
                 mqttClient.publish(topicSegreto, JSON.stringify(dati));
-                if (debugText) debugText.innerText = 'PRESO (IN MOVIMENTO)!';
+                if (debugText) debugText.innerText = 'PRESO!';
                 ultimoInvio = ora;
             }
             
         } else {
             handDot.setAttribute('color', 'red');
-            if (debugText) debugText.innerText = marker.object3D.visible ? 'MARKER AGGANCIATO. MANO APERTA.' : 'CERCA IL MARKER HIRO!';
+            if (debugText) debugText.innerText = marker.object3D.visible ? 'MANO APERTA' : 'INQUADRA IL MARKER!';
         }
     } else {
         if (debugText) debugText.innerText = 'CERCO MANO...';
@@ -115,7 +105,6 @@ startButton.addEventListener('click', () => {
     
     debugText.innerText = 'AVVIO SENSORI...';
 
-    // Attendiamo che AR.js generi il tag <video> e lo "rubiamo" per l'Intelligenza Artificiale
     const controlloVideo = setInterval(() => {
         const videoTrovato = document.querySelector('video');
         if (videoTrovato && videoTrovato.videoWidth > 0) {
@@ -123,7 +112,6 @@ startButton.addEventListener('click', () => {
             videoSorgente = videoTrovato;
             debugText.innerText = 'SISTEMI PRONTI.';
             
-            // Invio continuo dei fotogrammi a MediaPipe
             async function inviaVideoAllIA() {
                 await hands.send({image: videoSorgente});
                 requestAnimationFrame(inviaVideoAllIA);
