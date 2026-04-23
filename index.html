@@ -25,7 +25,7 @@
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
         
-        <a-marker preset="hiro" id="hiro-marker">
+        <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
             <a-entity id="ologram-screen" 
                       gltf-model="https://raw.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf" 
                       scale="1.5 1.5 1.5" 
