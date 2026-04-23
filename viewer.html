@@ -6,10 +6,13 @@
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #111; }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #222; }
+        #info-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 15px 30px; border-radius: 10px; font-size: 18px; z-index: 10; text-align: center; border: 1px solid #444;}
     </style>
 </head>
 <body>
+
+    <div id="info-panel">Sintonizzazione alla rete in corso...</div>
 
     <a-scene webxr="requiredFeatures: hit-test;" ar-hit-test="target: #ancora-pavimento">
         
@@ -21,15 +24,11 @@
                   material="color: #00FF00; shader: flat" rotation="-90 0 0" visible="false"></a-entity>
 
         <a-entity id="ancora-pavimento" visible="false">
-            
             <a-entity id="ologram-screen" 
                       gltf-model="#modelloEsame" 
                       scale="2 2 2" 
                       position="0 1.5 -1.5">
-                 
-                 <a-text id="testo-info" value="INIZIALIZZAZIONE..." align="center" width="2" position="0 0.5 0" color="white"></a-text>
             </a-entity>
-
         </a-entity>
 
         <a-camera position="0 1.6 0"></a-camera>
@@ -38,19 +37,17 @@
     <script>
         const ancora = document.getElementById('ancora-pavimento');
         const ologram = document.getElementById('ologram-screen');
-        const testoInfo = document.getElementById('testo-info');
         const scene = document.querySelector('a-scene');
+        const infoPanel = document.getElementById('info-panel');
         let oggettoPiazzato = false;
 
+        // Gestione posizionamento base (Clic per ancorare)
         function piazzaOggetto(posizione) {
             if (oggettoPiazzato) return;
-            
             ancora.setAttribute('position', posizione);
             ancora.setAttribute('visible', 'true');
             oggettoPiazzato = true;
-            
-            testoInfo.setAttribute('value', 'IN ATTESA DI DATI...');
-            console.log("SISTEMA: Oggetto piazzato in posizione:", posizione);
+            infoPanel.innerText = 'Oggetto posizionato. In attesa dei movimenti dallo studente...';
         }
 
         scene.addEventListener('ar-hit-test-select', (e) => {
@@ -59,22 +56,18 @@
         });
 
         window.addEventListener('click', () => {
-            piazzaOggetto({x: 0, y: 1, z: -2});
+            // Backup se usato da Desktop normale invece che visore AR
+            if(!oggettoPiazzato) piazzaOggetto({x: 0, y: 1, z: -2});
         });
 
-        // --- RETE MQTT ---
+        // --- RETE MQTT: Ricezione dei movimenti ---
         const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
         const topicSegreto = 'esame_ar_visore_2026_super_segreto';
         const mqttClient = mqtt.connect(brokerUrl);
 
         mqttClient.on('connect', () => {
-            console.log("RETE: Connesso al server EMQX!");
-            
             mqttClient.subscribe(topicSegreto, (err) => {
-                if (!err) {
-                    console.log("RETE: Sintonizzato. Pronto a ricevere!");
-                    testoInfo.setAttribute('value', 'CONNESSO.\nCLICCA LO SCHERMO');
-                }
+                if (!err) infoPanel.innerText = 'Rete Connessa. Clicca lo schermo per far apparire il modello base.';
             });
         });
 
@@ -82,13 +75,10 @@
             if (oggettoPiazzato) {
                 try {
                     const dati = JSON.parse(message.toString());
-                    
-                    // --- ANIMAZIONE FLUIDA (ANTI-LAG) ---
+                    // Animazione fluida verso la nuova coordinata ricevuta
                     ologram.setAttribute('animation', `property: position; to: ${dati.x} ${dati.y} ${dati.z}; dur: 75; easing: linear`);
-                    testoInfo.setAttribute('value', `MOVIMENTO IN CORSO...`);
-
                 } catch (e) {
-                    console.error("ERRORE: Dati ricevuti non validi", e);
+                    console.error("Dati non validi", e);
                 }
             }
         });
