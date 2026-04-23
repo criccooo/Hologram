@@ -12,7 +12,7 @@ mqttClient.on('connect', () => {
     console.log("Connesso al broker MQTT!");
 });
 
-// --- INIZIALIZZAZIONE MEDIAPIPE (Mani) ---
+// --- INIZIALIZZAZIONE MEDIAPIPE ---
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
@@ -29,67 +29,58 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // --- MATEMATICA DEL RITAGLIO (S23 FIX) ---
+        // --- 1. IL PALLINO SULLO SCHERMO (HUD) ---
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         const vidW = videoSorgente.videoWidth;
         const vidH = videoSorgente.videoHeight;
-
-        // Calcoliamo quanto il video è stato scalato da AR.js per coprire l'intero schermo
         const scale = Math.max(screenW / vidW, screenH / vidH);
         
-        // Dimensioni reali del video renderizzato (spesso più grandi dello schermo stesso)
         const renderedW = vidW * scale;
         const renderedH = vidH * scale;
-
-        // Calcoliamo quanti pixel sono stati "tagliati" ai bordi (Crop)
         const offsetX = (renderedW - screenW) / 2;
         const offsetY = (renderedH - screenH) / 2;
 
-        // Mappiamo le coordinate IA sui pixel esatti del display del tuo telefono
         const indexPixelX = (indexTip.x * renderedW) - offsetX;
         const indexPixelY = (indexTip.y * renderedH) - offsetY;
-        const thumbPixelX = (thumbTip.x * renderedW) - offsetX;
-        const thumbPixelY = (thumbTip.y * renderedH) - offsetY;
 
-        // Trasformiamo in coordinate normalizzate per il motore 3D (-1 a +1)
         const ndcX = (indexPixelX / screenW) * 2 - 1;
         const ndcY = -(indexPixelY / screenH) * 2 + 1;
 
-        // Posizioniamo il pallino sull'HUD della telecamera.
-        // Fattore 1.8 regola l'apertura del FOV su schermi 19.5:9
         handDot.setAttribute('position', `${ndcX * 1.8} ${ndcY * 1.8} -2`);
 
-        // --- CALIBRAZIONE PINCH IN PIXEL REALI ---
-        // Sul display ad alta densità del S23, misuriamo i pixel fisici di distanza tra le dita
-        const pinchDistance = Math.hypot(indexPixelX - thumbPixelX, indexPixelY - thumbPixelY);
-        
-        // 60 pixel di distanza sul display del telefono equivale a dita chiuse
-        if (pinchDistance < 60) {
+        // --- 2. IL PINCH (Calcolato con i dati puri dell'IA, infallibile) ---
+        // MediaPipe fornisce valori da 0.0 a 1.0. 
+        // Se la distanza tra le dita è minore di 0.05 (5%), è un pinch!
+        const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+        const isPinching = pinchDist < 0.05;
+
+        if (isPinching) {
             handDot.setAttribute('color', 'yellow');
             
-            // Otteniamo la posizione 3D globale del pallino giallo
-            const dotWorldPos = new THREE.Vector3();
-            handDot.object3D.getWorldPosition(dotWorldPos);
-            
-            // Se il marker è visibile, calcoliamo la posizione dell'oggetto rispetto al marker
+            // --- 3. SPOSTAMENTO A "SCACCHIERA" SUL MARKER ---
             if (marker.object3D.visible) {
-                marker.object3D.worldToLocal(dotWorldPos);
-                ologram.setAttribute('position', dotWorldPos);
-            }
+                // Invece di teletrasportarlo in 3D, mappiamo le coordinate dello schermo 
+                // direttamente sulla superficie piatta del marker sul tavolo.
+                // Moltiplichiamo per 2 per dare un raggio d'azione di un paio di metri virtuali.
+                const posX = ndcX * 2; 
+                const posZ = -ndcY * 2; // Invertiamo la Y per farla diventare profondità
+                
+                // Mantiene l'altezza fissa (0.5), così non sprofonda nel tavolo o vola via
+                ologram.setAttribute('position', `${posX} 0.5 ${posZ}`);
 
-            // Trasmissione rete
-            const ora = Date.now();
-            if (mqttClient.connected && (ora - ultimoInvio > 50)) {
-                const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
-                mqttClient.publish(topicSegreto, JSON.stringify(dati));
-                if (debugText) debugText.innerText = 'PRESO!';
-                ultimoInvio = ora;
+                // Inviamo le coordinate piatte al PC
+                const ora = Date.now();
+                if (mqttClient.connected && (ora - ultimoInvio > 50)) {
+                    const dati = { x: posX, y: 0.5, z: posZ };
+                    mqttClient.publish(topicSegreto, JSON.stringify(dati));
+                    if (debugText) debugText.innerText = 'OGGETTO IN MOVIMENTO!';
+                    ultimoInvio = ora;
+                }
             }
-            
         } else {
             handDot.setAttribute('color', 'red');
-            if (debugText) debugText.innerText = marker.object3D.visible ? 'MANO APERTA' : 'INQUADRA IL MARKER!';
+            if (debugText) debugText.innerText = marker.object3D.visible ? 'MANO APERTA' : 'INQUADRA IL MARKER HIRO';
         }
     } else {
         if (debugText) debugText.innerText = 'CERCO MANO...';
