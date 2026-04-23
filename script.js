@@ -13,7 +13,7 @@ mqttClient.on('connect', () => {
     console.log("Telefono connesso a Internet!");
 });
 
-// --- SETUP MEDIAPIPE (OTTIMIZZATO PER EVITARE LAG) ---
+// --- SETUP MEDIAPIPE ---
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
@@ -27,10 +27,12 @@ hands.onResults((results) => {
         const indexTip = landmarks[8];
         const thumbTip = landmarks[4];
 
-        // CORREZIONE EFFETTO SPECCHIO E ALTEZZA (ad altezza occhi)
-        const x = (indexTip.x - 0.5) * 2; 
-        const y = (0.5 - indexTip.y) * 2 + 1.5; 
-        const z = -1;
+        // CORREZIONE POSIZIONE PALLINO: 
+        // Moltiplicatore alzato a 3.5 per coprire meglio i bordi dello schermo.
+        // Z spinta a -1.5 per allineare meglio il pallino alla percezione della distanza.
+        const x = (indexTip.x - 0.5) * 3.5; 
+        const y = (0.5 - indexTip.y) * 3.5 + 1.5; 
+        const z = -1.5; 
 
         handDot.setAttribute('position', {x, y, z});
 
@@ -52,17 +54,20 @@ hands.onResults((results) => {
             if (mqttClient.connected && (ora - ultimoInvio > 50)) {
                 const dati = { x: dotWorldPos.x, y: dotWorldPos.y, z: dotWorldPos.z };
                 mqttClient.publish(topicSegreto, JSON.stringify(dati));
-                if (debugText) debugText.setAttribute('value', 'DATI INVIATI IN TEMPO REALE!');
+                // ERRORE FIXATO: Uso di innerText al posto di setAttribute per il testo HTML
+                if (debugText) debugText.innerText = 'DATI INVIATI IN TEMPO REALE!';
                 ultimoInvio = ora;
             }
             
         } else {
             // MANO APERTA
             handDot.setAttribute('color', 'red');
-            if (debugText) debugText.setAttribute('value', 'MANO TROVATA!');
+            // ERRORE FIXATO
+            if (debugText) debugText.innerText = 'MANO TROVATA!';
         }
     } else {
-        if (debugText) debugText.setAttribute('value', 'CERCO MANO...');
+        // ERRORE FIXATO
+        if (debugText) debugText.innerText = 'CERCO MANO...';
         handDot.setAttribute('visible', 'false');
     }
 });
@@ -74,13 +79,14 @@ startButton.addEventListener('click', () => {
     if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
     else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
     
-    // Telecamera fluida
+    // QUALITÀ TELECAMERA ALZATA A 640x480 (Meno sgranata!)
     const camera = new Camera(videoElement, {
         onFrame: async () => { await hands.send({image: videoElement}); },
-        width: 320, height: 240, facingMode: 'environment' 
+        width: 640, height: 480, facingMode: 'environment' 
     });
     
     camera.start()
-        .then(() => { if (debugText) debugText.setAttribute('value', 'CAMERA FLUIDA OK.'); })
-        .catch((err) => { if (debugText) debugText.setAttribute('value', 'ERRORE CAM: ' + err.message); });
+        // ERRORE FIXATO
+        .then(() => { if (debugText) debugText.innerText = 'CAMERA FLUIDA OK.'; })
+        .catch((err) => { if (debugText) debugText.innerText = 'ERRORE CAM: ' + err.message; });
 });
